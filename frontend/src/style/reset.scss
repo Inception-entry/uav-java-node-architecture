@@ -1,0 +1,7 @@
+
+// 主题/语言 激活的样式
+.active_theme,
+.active_lang {
+  color: #fff !important;
+  background-color: variables.$primary-color;
+}

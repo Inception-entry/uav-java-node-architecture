@@ -1,0 +1,28 @@
+{
+  "extends": "@vue/tsconfig/tsconfig.dom.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "allowJs": true, // 允许编译 JavaScript 文件
+    "allowSyntheticDefaultImports": true, //允许引用没有默认导出的模块
+    "checkJs": true, // 报告 JavaScript 文件中的错误
+    "module": "ESNext", // 使用 ES6 模块系统
+    "target": "es5", // 目标 JavaScript 版本
+    "outDir": "./dist", // 输出目录
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.vue"
+  ]
+}
