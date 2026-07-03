@@ -56,6 +56,37 @@ services:
     volumes:
       - minio_data:/data
 
+  temporal:
+    image: temporalio/auto-setup:latest
+    container_name: uav-temporal
+    restart: always
+    environment:
+      DB: mysql8
+      DB_PORT: 3306
+      MYSQL_SEEDS: mysql
+      MYSQL_USER: root
+      MYSQL_PWD: ${MYSQL_ROOT_PASSWORD}
+      DYNAMIC_CONFIG_FILE_PATH: config/dynamicconfig/development-sql.yaml
+    ports:
+      - "7233:7233"
+    volumes:
+      - ./temporal/dynamicconfig:/etc/temporal/config/dynamicconfig
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  temporal-ui:
+    image: temporalio/ui:latest
+    container_name: uav-temporal-ui
+    restart: always
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_CORS_ORIGINS: http://localhost:${FRONTEND_PORT:-8888}
+    ports:
+      - "${TEMPORAL_UI_PORT:-8088}:8080"
+    depends_on:
+      - temporal
+
   backend-java:
     build:
       context: ../backend-java
@@ -78,6 +109,9 @@ services:
       MINIO_ENDPOINT: http://minio:9000
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      TEMPORAL_TARGET_ENDPOINT: temporal:7233
+      TEMPORAL_NAMESPACE: default
+      TEMPORAL_TASK_QUEUE: uav-inspection-task-queue
     ports:
       - "${JAVA_PORT}:8080"
     depends_on:
@@ -88,6 +122,8 @@ services:
       rabbitmq:
         condition: service_started
       minio:
+        condition: service_started
+      temporal:
         condition: service_started
 
   backend-node:

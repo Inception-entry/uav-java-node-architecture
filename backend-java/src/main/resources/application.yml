@@ -17,7 +17,17 @@ spring:
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USERNAME:admin}
     password: ${RABBITMQ_PASSWORD:admin123}
-
+  temporal:
+    connection:
+      target: ${TEMPORAL_TARGET_ENDPOINT:localhost:7233}
+    namespace: ${TEMPORAL_NAMESPACE:default}
+    workers:
+      - task-queue: ${TEMPORAL_TASK_QUEUE:uav-inspection-task-queue}
+        workflow-classes:
+          - com.uav.backend.temporal.workflow.HelloWorkflowImpl
+          - com.uav.backend.temporal.workflow.InspectionWorkflowImpl
+        activity-beans:
+          - inspectionTaskActivities
 app:
   minio:
     endpoint: ${MINIO_ENDPOINT:http://localhost:9001}

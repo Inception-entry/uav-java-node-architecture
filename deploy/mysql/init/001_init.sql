@@ -1,7 +1,7 @@
-CREATE DATABASE IF NOT EXISTS uav_mysql
+CREATE DATABASE IF NOT EXISTS uav_inspection
 DEFAULT CHARACTER SET utf8mb4
 COLLATE utf8mb4_unicode_ci;
-USE uav_mysql;
+USE uav_inspection;
 CREATE TABLE IF NOT EXISTS alarm_event (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   event_code VARCHAR(64) NOT NULL UNIQUE,
