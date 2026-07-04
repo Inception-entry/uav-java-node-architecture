@@ -1,7 +1,12 @@
 <template>
   <main class="task-page">
     <section class="task-panel">
-      <h1>无人机巡检任务</h1>
+      <header class="panel-header">
+        <h1>无人机巡检任务</h1>
+        <RouterLink class="chat-link" to="/chat">
+          AI 智能分析
+        </RouterLink>
+      </header>
 
       <div class="toolbar">
         <input
@@ -166,6 +171,21 @@ onMounted(loadTasks)
   padding: 24px;
   background: white;
   border-radius: 10px;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.chat-link {
+  padding: 9px 14px;
+  color: white;
+  text-decoration: none;
+  background: #2563eb;
+  border-radius: 8px;
 }
 
 .toolbar {

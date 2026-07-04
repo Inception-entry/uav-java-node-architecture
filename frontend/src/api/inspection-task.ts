@@ -4,6 +4,12 @@ export interface InspectionTask {
   status: string
 }
 
+export interface InspectionAnalysis {
+  taskCode: string
+  workflowId: string
+  analysis: string
+}
+
 interface ApiResponse<T> {
   success: boolean
   message: string
@@ -52,5 +58,21 @@ export function cancelInspectionTask(taskCode: string) {
   return request<void>(
     `/api/inspection-tasks/${taskCode}/cancel`,
     { method: 'POST' },
+  )
+}
+
+export function analyzeInspectionTask(
+  taskCode: string,
+  question: string,
+) {
+  return request<InspectionAnalysis>(
+    `/api/inspection-tasks/${encodeURIComponent(taskCode)}/analysis`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ question }),
+    },
   )
 }

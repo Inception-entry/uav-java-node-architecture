@@ -1,5 +1,6 @@
-import { Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { JavaClientService } from '../shared/java-client.service';
+import { AnalyzeInspectionTaskDto } from './dto/analyze-inspection-task.dto';
 
 @Controller('inspection-tasks')
 export class InspectionTaskController {
@@ -38,6 +39,18 @@ export class InspectionTaskController {
     return this.javaClient.post(
       `/inspection-workflows/${taskCode}/cancel`,
       {},
+    );
+  }
+
+  @Post(':taskCode/analysis')
+  analyze(
+    @Param('taskCode') taskCode: string,
+    @Body() dto: AnalyzeInspectionTaskDto,
+  ): Promise<unknown> {
+    return this.javaClient.post(
+      `/inspection-workflows/${taskCode}/analysis`,
+      dto,
+      180_000,
     );
   }
 }

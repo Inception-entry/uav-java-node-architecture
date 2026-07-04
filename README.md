@@ -79,7 +79,7 @@ uav-java-node-architecture/
 │   ├── architecture.md                  # 服务职责与通信方式
 │   └── temporal-integration.md          # Temporal / Nexus 融合路线
 ├── scripts/
-│   └── start.sh                         # 从仓库根目录启动 Compose
+│   └── uav.sh                           # 统一管理 Compose 服务
 └── README.md                            # 项目总览与运行说明
 ```
 
@@ -109,34 +109,38 @@ cp deploy/.env.example deploy/.env
 2. 检查 `deploy/.env` 中的 `MYSQL_DATABASE` 与
    `deploy/mysql/init/001_init.sql` 中创建并使用的数据库名称一致。
 
-3. 在仓库根目录启动：
+3. 首次运行或代码发生变化时，构建并启动全部服务：
 
 ```bash
-bash scripts/start.sh
+./scripts/uav.sh rebuild
 ```
 
-也可以直接使用 Compose：
+日常启动、查看状态和日志：
 
 ```bash
-docker compose --env-file deploy/.env -f deploy/docker-compose.yml up -d --build
+./scripts/uav.sh start
+./scripts/uav.sh status
+./scripts/uav.sh logs
 ```
 
-查看容器状态和日志：
+只操作单个服务：
 
 ```bash
-docker compose --env-file deploy/.env -f deploy/docker-compose.yml ps
-docker compose --env-file deploy/.env -f deploy/docker-compose.yml logs -f
+./scripts/uav.sh rebuild backend-java
+./scripts/uav.sh restart temporal-ui
+./scripts/uav.sh logs backend-node
 ```
 
-停止服务：
+重启或停止全部服务：
 
 ```bash
-docker compose --env-file deploy/.env -f deploy/docker-compose.yml down
+./scripts/uav.sh restart
+./scripts/uav.sh stop
 ```
 
 Compose 会同时启动前端、Node BFF、Java 服务和基础设施。前端由 Nginx 托管，并将 `/api/` 代理到 Node BFF、`/socket.io/` 代理到实时服务。
 
-> `scripts/start.sh` 会执行 `docker compose up -d --build`，从任意目录调用都会使用项目中的 `deploy/.env` 和 Compose 文件。
+> `scripts/uav.sh` 可以从任意目录调用，并始终使用项目中的 `deploy/.env` 和 Compose 文件。运行 `./scripts/uav.sh help` 可以查看全部子命令。
 
 ## 本地开发
 

@@ -1,0 +1,1 @@
+"""UAV AI service."""

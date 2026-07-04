@@ -87,6 +87,32 @@ services:
     depends_on:
       - temporal
 
+  backend-ai:
+    build:
+      context: ../backend-ai
+    container_name: uav-backend-ai
+    restart: always
+    environment:
+      AI_OLLAMA_BASE_URL: http://host.docker.internal:11434
+      AI_OLLAMA_MODEL: ${AI_OLLAMA_MODEL:-my-drone-expert}
+      AI_OLLAMA_TIMEOUT_SECONDS: ${AI_OLLAMA_TIMEOUT_SECONDS:-120}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${AI_PORT:-8000}:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen('http://localhost:8000/health', timeout=5)
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   backend-java:
     build:
       context: ../backend-java
@@ -112,6 +138,7 @@ services:
       TEMPORAL_TARGET_ENDPOINT: temporal:7233
       TEMPORAL_NAMESPACE: default
       TEMPORAL_TASK_QUEUE: uav-inspection-task-queue
+      AI_BASE_URL: http://backend-ai:8000
     ports:
       - "${JAVA_PORT}:8080"
     depends_on:
@@ -125,6 +152,8 @@ services:
         condition: service_started
       temporal:
         condition: service_started
+      backend-ai:
+        condition: service_healthy
 
   backend-node:
     build:

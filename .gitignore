@@ -11,6 +11,12 @@ target/
 *.jar
 *.war
 
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
 # Maven / Gradle
 .mvn/wrapper/maven-wrapper.jar
 .gradle/
@@ -31,4 +37,3 @@ logs/
 # Docker / runtime
 *.pid
 tmp/
-

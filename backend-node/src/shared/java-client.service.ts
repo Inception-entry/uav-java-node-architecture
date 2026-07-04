@@ -13,8 +13,18 @@ export class JavaClientService {
     return response.data;
   }
 
-  async post<T>(path: string, body: unknown): Promise<T> {
-    const response = await firstValueFrom(this.httpService.post<T>(`${this.baseUrl}/api${path}`, body));
+  async post<T>(
+    path: string,
+    body: unknown,
+    timeout = 5000,
+  ): Promise<T> {
+    const response = await firstValueFrom(
+      this.httpService.post<T>(
+        `${this.baseUrl}/api${path}`,
+        body,
+        { timeout },
+      ),
+    );
     return response.data;
   }
 }
