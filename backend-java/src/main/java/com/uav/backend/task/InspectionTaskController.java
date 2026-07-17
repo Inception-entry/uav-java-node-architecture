@@ -1,10 +1,16 @@
 package com.uav.backend.task;
 
 import com.uav.backend.common.ApiResponse;
+import com.uav.backend.task.dto.CreateInspectionTaskRequest;
 import com.uav.backend.task.dto.InspectionTaskResponse;
+import com.uav.backend.task.dto.UpdateInspectionTaskRequest;
 import com.uav.backend.task.service.InspectionTaskService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -26,5 +32,20 @@ public class InspectionTaskController {
     @GetMapping("/{taskCode}")
     public ApiResponse<InspectionTaskResponse> detail(@PathVariable String taskCode) {
         return ApiResponse.ok(inspectionTaskService.findByTaskCode(taskCode));
+    }
+
+    @PostMapping
+    public ApiResponse<InspectionTaskResponse> create(
+            @Valid @RequestBody CreateInspectionTaskRequest request) {
+        return ApiResponse.ok(inspectionTaskService.create(request));
+    }
+
+    @PutMapping("/{taskCode}")
+    public ApiResponse<InspectionTaskResponse> update(
+            @PathVariable String taskCode,
+            @Valid @RequestBody UpdateInspectionTaskRequest request) {
+        return ApiResponse.ok(
+                inspectionTaskService.update(taskCode, request)
+        );
     }
 }

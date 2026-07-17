@@ -26,6 +26,7 @@ spring:
         workflow-classes:
           - com.uav.backend.temporal.workflow.InspectionWorkflowImpl
           - com.uav.backend.temporal.workflow.InspectionAnalysisWorkflowImpl
+          - com.uav.backend.temporal.workflow.InspectionChatWorkflowImpl
         activity-beans:
           - inspectionTaskActivities
           - inspectionAnalysisActivities
@@ -33,6 +34,6 @@ app:
   ai:
     base-url: ${AI_BASE_URL:http://localhost:8000}
   minio:
-    endpoint: ${MINIO_ENDPOINT:http://localhost:9001}
+    endpoint: ${MINIO_ENDPOINT:http://localhost:9011}
     access-key: ${MINIO_ACCESS_KEY:minioadmin}
     secret-key: ${MINIO_SECRET_KEY:minioadmin123}

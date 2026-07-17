@@ -1,6 +1,8 @@
 package com.uav.backend.common;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -21,11 +23,37 @@ public class GlobalExceptionHandler {
         return ApiResponse.fail(msg);
     }
 
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<Void> handleUnreadableRequest() {
+        return ApiResponse.fail("请求格式错误，请检查日期和字段类型");
+    }
+
     @ExceptionHandler(NoSuchElementException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ApiResponse<Void> handleNotFound(
             NoSuchElementException ex) {
         return ApiResponse.fail(ex.getMessage());
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<Void> handleBadRequest(
+            IllegalArgumentException ex) {
+        return ApiResponse.fail(ex.getMessage());
+    }
+
+    @ExceptionHandler(ConflictException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiResponse<Void> handleConflict(
+            ConflictException ex) {
+        return ApiResponse.fail(ex.getMessage());
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiResponse<Void> handleDataConflict() {
+        return ApiResponse.fail("数据冲突，请检查任务编号是否重复");
     }
 
     @ExceptionHandler(Exception.class)

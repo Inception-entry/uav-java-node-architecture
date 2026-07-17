@@ -3,7 +3,8 @@ package com.uav.backend.temporal;
 import com.uav.backend.ai.dto.InspectionAnalysisRequest;
 import com.uav.backend.ai.dto.InspectionAnalysisResponse;
 import com.uav.backend.common.ApiResponse;
-import com.uav.backend.temporal.workflow.InspectionAnalysisWorkflow;
+import com.uav.backend.task.service.InspectionTaskService;
+import com.uav.backend.temporal.workflow.InspectionChatWorkflow;
 import com.uav.backend.temporal.workflow.InspectionWorkflow;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowClient;
@@ -26,9 +27,13 @@ public class InspectionWorkflowController {
     private static final String TASK_QUEUE = "uav-inspection-task-queue";
 
     private final WorkflowClient workflowClient;
+    private final InspectionTaskService inspectionTaskService;
 
-    public InspectionWorkflowController(WorkflowClient workflowClient) {
+    public InspectionWorkflowController(
+            WorkflowClient workflowClient,
+            InspectionTaskService inspectionTaskService) {
         this.workflowClient = workflowClient;
+        this.inspectionTaskService = inspectionTaskService;
     }
 
     @PostMapping("/{taskCode}")
@@ -78,20 +83,29 @@ public class InspectionWorkflowController {
     public ApiResponse<InspectionAnalysisResponse> analyze(
             @PathVariable String taskCode,
             @Valid @RequestBody InspectionAnalysisRequest request) {
+        // 在创建工作流前确认任务真实存在，让不存在的任务直接返回 404。
+        inspectionTaskService.findByTaskCode(taskCode);
+
         String workflowId = "inspection-analysis-"
                 + taskCode + "-" + UUID.randomUUID();
 
-        InspectionAnalysisWorkflow workflow =
+        String sessionId = request.sessionId();
+        if (sessionId == null || sessionId.isBlank()) {
+            sessionId = workflowId;
+        }
+
+        InspectionChatWorkflow workflow =
                 workflowClient.newWorkflowStub(
-                        InspectionAnalysisWorkflow.class,
+                        InspectionChatWorkflow.class,
                         WorkflowOptions.newBuilder()
                                 .setWorkflowId(workflowId)
                                 .setTaskQueue(TASK_QUEUE)
                                 .build()
                 );
 
-        String analysis = workflow.analyze(
+        String analysis = workflow.chat(
                 taskCode,
+                sessionId,
                 request.question()
         );
 

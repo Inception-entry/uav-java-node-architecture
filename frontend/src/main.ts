@@ -6,6 +6,7 @@ import router from './router'
 import register from './components/pe-global-register'
 import i18next from "i18next"
 import I18NextVue from "i18next-vue"
+import { initializeAuthentication } from '@/auth/keycloak'
 
 // global css
 import '@/style/common.scss'
@@ -14,20 +15,32 @@ import '@/style/reset.scss'
 // cesium vue
 import cesiumVue from '@/libs/cesium/cesium-vue'
 
-const app = createApp(App)
+async function bootstrap() {
+  await initializeAuthentication()
 
-app.use(store).use(router).use(I18NextVue, { i18next }).use(cesiumVue)
+  const app = createApp(App)
 
-// 引入antd的组件
-app.use(Button)
-app.use(ConfigProvider)
-app.use(Dropdown)
-app.use(Menu)
-app.use(Drawer)
-app.use(Tabs)
+  app.use(store).use(router).use(I18NextVue, { i18next }).use(cesiumVue)
 
-app.config.globalProperties.$message = message;
+  // 引入antd的组件
+  app.use(Button)
+  app.use(ConfigProvider)
+  app.use(Dropdown)
+  app.use(Menu)
+  app.use(Drawer)
+  app.use(Tabs)
 
-register(app)
+  app.config.globalProperties.$message = message;
 
-app.mount('#app')
+  register(app)
+  app.mount('#app')
+}
+
+void bootstrap().catch((error: unknown) => {
+  console.error('Keycloak 初始化失败', error)
+  const root = document.getElementById('app')
+  if (root) {
+    root.textContent = '登录服务暂时不可用，请确认 Keycloak 已启动后刷新页面。'
+    root.classList.add('authentication-error')
+  }
+})

@@ -2,8 +2,12 @@ from contextlib import asynccontextmanager
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request, status
+from langchain_core.messages import HumanMessage
 from langchain_ollama import ChatOllama
+from redis.asyncio import Redis
+from redis.exceptions import RedisError
 
+from app.chat_history import RedisChatHistory
 from app.config import get_settings
 from app.schemas import (
     ChatRequest,
@@ -24,7 +28,17 @@ async def lifespan(app: FastAPI):
         num_ctx=8192,
         client_kwargs={"timeout": settings.ollama_timeout_seconds},
     )
+    app.state.redis = Redis.from_url(
+        settings.redis_url,
+        decode_responses=True,
+    )
+    app.state.chat_history = RedisChatHistory(
+        redis=app.state.redis,
+        history_turns=settings.chat_history_turns,
+        ttl_seconds=settings.chat_session_ttl_seconds,
+    )
     yield
+    await app.state.redis.aclose()
 
 
 app = FastAPI(
@@ -59,10 +73,11 @@ async def health() -> HealthResponse:
                 model["name"].removesuffix(":latest")
                 for model in response.json().get("models", [])
             }
-    except (httpx.HTTPError, ValueError, KeyError) as exc:
+        await app.state.redis.ping()
+    except (httpx.HTTPError, RedisError, ValueError, KeyError) as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Ollama unavailable: {exc}",
+            detail=f"AI dependency unavailable: {exc}",
         ) from exc
 
     model_status = (
@@ -74,6 +89,7 @@ async def health() -> HealthResponse:
         status="ok" if model_status == "available" else "degraded",
         service=settings.service_name,
         ollama="connected",
+        redis="connected",
         model=model_status,
     )
 
@@ -81,16 +97,26 @@ async def health() -> HealthResponse:
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(payload: ChatRequest, request: Request) -> ChatResponse:
     try:
-        response = await request.app.state.llm.ainvoke(payload.message)
+        history = await request.app.state.chat_history.get_messages(
+            payload.session_id
+        )
+        response = await request.app.state.llm.ainvoke(
+            [*history, HumanMessage(content=payload.message)]
+        )
+        answer = (
+            response.content
+            if isinstance(response.content, str)
+            else str(response.content)
+        )
+        await request.app.state.chat_history.append_exchange(
+            payload.session_id,
+            payload.message,
+            answer,
+        )
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Model invocation failed: {exc}",
         ) from exc
 
-    answer = (
-        response.content
-        if isinstance(response.content, str)
-        else str(response.content)
-    )
     return ChatResponse(model=settings.ollama_model, answer=answer)

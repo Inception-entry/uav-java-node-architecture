@@ -1,8 +1,15 @@
 package com.uav.backend.task.dto;
 
-public record InspectionTaskResponse (
-  String taskCode,
-  String taskName,
-  String status
+import java.time.LocalDateTime;
+
+public record InspectionTaskResponse(
+        String taskCode,
+        String taskName,
+        String deviceCode,
+        String status,
+        LocalDateTime planStartTime,
+        LocalDateTime planEndTime,
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt
 ) {
 }

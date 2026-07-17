@@ -1,21 +1,19 @@
 # UAV Java + Node.js 架构脚手架
 
-面向“无人机巡检、人员持械识别、实时告警与证据链”场景的前后端架构脚手架。项目采用 Vue 3 + Cesium 构建三维可视化界面，NestJS 承担 BFF 与实时推送，Spring Boot 负责核心业务和数据持久化。
+面向“无人机巡检、人员持械识别、实时告警与证据链”场景的前后端架构脚手架。项目采用 Vue 3 + Cesium 构建三维可视化界面，Nginx 提供统一入口，Spring Cloud Gateway 承担鉴权、路由、限流和日志，NestJS 承担 BFF 与实时推送，Spring Boot 负责核心业务和数据持久化。
 
 ## 技术架构
 
 ```text
-Vue 3 / Cesium 前端
-        │
-        ├── HTTP ────────> NestJS BFF ── REST ──> Spring Boot 核心服务
-        │                       │                         │
-        └── Socket.IO <─────────┘                         ├── MySQL
-                                                        ├── Redis
-                                                        ├── RabbitMQ
-                                                        ├── MinIO
-                                                        └── Temporal
+浏览器
+  -> Nginx（域名、HTTPS、静态资源、网络代理）
+  -> Spring Cloud Gateway（鉴权、路由、限流、日志）
+  -> NestJS BFF（聚合、转换、前端业务编排）
+  -> Spring Boot（核心业务、Temporal、MySQL）
 ```
 
+- **Nginx**：域名与 HTTPS 入口、静态资源托管、API/WebSocket 反向代理。
+- **Gateway**：JWT/Keycloak 鉴权、服务路由、Redis 限流、可信身份传递、请求 ID、访问日志与指标。
 - **Frontend**：三维地图、无人机展示、主题与语言切换。
 - **Node.js**：面向前端的接口聚合、Java 服务代理、Socket.IO 告警推送。
 - **Java**：告警、设备、巡检任务等核心业务、数据持久化及 Temporal 工作流编排入口。
@@ -53,6 +51,10 @@ uav-java-node-architecture/
 │   ├── Dockerfile                       # Node 多阶段构建镜像
 │   ├── package.json                     # npm 脚本与依赖
 │   └── tsconfig.json                    # TypeScript 配置
+├── gateway-java/                        # Spring Cloud Gateway 独立服务
+│   ├── src/main/                        # 路由、安全、限流和日志配置
+│   ├── Dockerfile                       # Gateway 多阶段构建镜像
+│   └── pom.xml                          # Spring Cloud 依赖管理
 ├── frontend/                            # Vue 3 + Cesium 三维可视化前端
 │   ├── src/
 │   │   ├── assets/                      # 无人机模型等静态资源
@@ -127,6 +129,7 @@ cp deploy/.env.example deploy/.env
 
 ```bash
 ./scripts/uav.sh rebuild backend-java
+./scripts/uav.sh rebuild gateway
 ./scripts/uav.sh restart temporal-ui
 ./scripts/uav.sh logs backend-node
 ```
@@ -138,7 +141,11 @@ cp deploy/.env.example deploy/.env
 ./scripts/uav.sh stop
 ```
 
-Compose 会同时启动前端、Node BFF、Java 服务和基础设施。前端由 Nginx 托管，并将 `/api/` 代理到 Node BFF、`/socket.io/` 代理到实时服务。
+Compose 会同时启动前端、Gateway、Node BFF、Java 服务和基础设施。前端由 Nginx 托管，并将 `/api/` 与 `/socket.io/` 统一代理到 Gateway，再由 Gateway 路由到 Node BFF。
+
+> Gateway、Node、Java 与基础设施的宿主机端口只绑定到
+> `127.0.0.1`。局域网/公网业务入口只有 Nginx。Vue 使用 Keycloak PKCE
+> 登录，具体配置见 [`docs/gateway.md`](docs/gateway.md)。
 
 > `scripts/uav.sh` 可以从任意目录调用，并始终使用项目中的 `deploy/.env` 和 Compose 文件。运行 `./scripts/uav.sh help` 可以查看全部子命令。
 
@@ -171,6 +178,19 @@ HTTP 健康检查：`http://localhost:3000/api/health`
 
 Socket.IO 服务：`http://localhost:3001`
 
+### Spring Cloud Gateway
+
+本地开发时先启动 Redis、Java 和 Node BFF，然后运行：
+
+```bash
+cd gateway-java
+mvn spring-boot:run
+```
+
+Gateway API：`http://localhost:8082/api`
+
+健康检查：`http://localhost:8082/actuator/health`
+
 ### Vue/Cesium 前端
 
 ```bash
@@ -187,16 +207,18 @@ npm run dev
 
 | 服务 | 默认地址 | 说明 |
 | --- | --- | --- |
-| Frontend | `http://localhost:8888` | Vite 开发服务或 Docker Nginx |
-| Java API | `http://localhost:8080/api` | Docker 环境核心业务服务 |
+| Frontend / Nginx | `http://localhost:8888` | 统一业务访问入口 |
+| HTTPS（预留） | `https://localhost:8443` | 使用 HTTPS 模板和证书后启用 |
+| Spring Cloud Gateway | `http://localhost:8082` | 鉴权、路由、限流和访问日志 |
+| Java API | `http://localhost:8081/api` | Docker 环境核心业务服务 |
 | Java API（本地） | `http://localhost:8081/api` | local profile + H2 |
 | Node API | `http://localhost:3000/api` | BFF 接口 |
 | Socket.IO | `http://localhost:3001` | 实时告警推送 |
 | MySQL | `localhost:3307` | 宿主机映射端口 |
-| Redis | `localhost:6379` | 缓存与在线状态预留 |
+| Redis | `localhost:6380` | 缓存、聊天记忆和 Gateway 限流 |
 | RabbitMQ | `http://localhost:15672` | 管理控制台 |
-| MinIO API | `http://localhost:9001` | 对象存储 API |
-| MinIO Console | `http://localhost:9002` | 对象存储控制台 |
+| MinIO API | `http://localhost:9011` | 对象存储 API |
+| MinIO Console | `http://localhost:9012` | 对象存储控制台 |
 | Temporal gRPC | `localhost:7233` | Temporal Server |
 | Temporal UI | `http://localhost:8088` | 工作流可视化控制台 |
 

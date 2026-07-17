@@ -50,3 +50,12 @@ body {
     background-color: #1a1a1a;;
   }
 }
+body > .authentication-error {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px;
+  color: #991b1b;
+  font-size: 18px;
+  background: #f8fafc;
+}

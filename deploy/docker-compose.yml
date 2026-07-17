@@ -9,7 +9,7 @@ services:
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     ports:
-      - "3307:3306"
+      - "127.0.0.1:3307:3306"
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     volumes:
       - mysql_data:/var/lib/mysql
@@ -19,15 +19,19 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    networks:
+      - backend
 
   redis:
     image: redis:7.4-alpine
     container_name: uav-redis
     restart: always
     ports:
-      - "6379:6379"
+      - "127.0.0.1:${REDIS_HOST_PORT:-6380}:6379"
     volumes:
       - redis_data:/data
+    networks:
+      - backend
 
   rabbitmq:
     image: rabbitmq:4-management
@@ -37,10 +41,12 @@ services:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - backend
 
   minio:
     image: minio/minio:latest
@@ -51,10 +57,12 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     ports:
-      - "9001:9000"
-      - "9002:9002"
+      - "127.0.0.1:${MINIO_API_PORT:-9011}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9012}:9002"
     volumes:
       - minio_data:/data
+    networks:
+      - backend
 
   temporal:
     image: temporalio/auto-setup:latest
@@ -68,12 +76,14 @@ services:
       MYSQL_PWD: ${MYSQL_ROOT_PASSWORD}
       DYNAMIC_CONFIG_FILE_PATH: config/dynamicconfig/development-sql.yaml
     ports:
-      - "7233:7233"
+      - "127.0.0.1:7233:7233"
     volumes:
       - ./temporal/dynamicconfig:/etc/temporal/config/dynamicconfig
     depends_on:
       mysql:
         condition: service_healthy
+    networks:
+      - backend
 
   temporal-ui:
     image: temporalio/ui:latest
@@ -83,23 +93,28 @@ services:
       TEMPORAL_ADDRESS: temporal:7233
       TEMPORAL_CORS_ORIGINS: http://localhost:${FRONTEND_PORT:-8888}
     ports:
-      - "${TEMPORAL_UI_PORT:-8088}:8080"
+      - "127.0.0.1:${TEMPORAL_UI_PORT:-8088}:8080"
     depends_on:
       - temporal
+    networks:
+      - backend
 
   backend-ai:
     build:
       context: ../backend-ai
     container_name: uav-backend-ai
     restart: always
+    network_mode: host
+    depends_on:
+      redis:
+        condition: service_started
     environment:
-      AI_OLLAMA_BASE_URL: http://host.docker.internal:11434
+      AI_OLLAMA_BASE_URL: http://127.0.0.1:11434
       AI_OLLAMA_MODEL: ${AI_OLLAMA_MODEL:-my-drone-expert}
       AI_OLLAMA_TIMEOUT_SECONDS: ${AI_OLLAMA_TIMEOUT_SECONDS:-120}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    ports:
-      - "${AI_PORT:-8000}:8000"
+      AI_REDIS_URL: redis://127.0.0.1:${REDIS_HOST_PORT:-6380}/0
+      AI_CHAT_HISTORY_TURNS: ${AI_CHAT_HISTORY_TURNS:-6}
+      AI_CHAT_SESSION_TTL_SECONDS: ${AI_CHAT_SESSION_TTL_SECONDS:-86400}
     healthcheck:
       test:
         - CMD
@@ -121,6 +136,7 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: docker
       SERVER_PORT: 8080
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
       MYSQL_DATABASE: ${MYSQL_DATABASE}
@@ -138,9 +154,13 @@ services:
       TEMPORAL_TARGET_ENDPOINT: temporal:7233
       TEMPORAL_NAMESPACE: default
       TEMPORAL_TASK_QUEUE: uav-inspection-task-queue
-      AI_BASE_URL: http://backend-ai:8000
+      AI_BASE_URL: http://host.docker.internal:8000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
-      - "${JAVA_PORT}:8080"
+      - "127.0.0.1:${JAVA_PORT}:8080"
+    expose:
+      - "8080"
     depends_on:
       mysql:
         condition: service_healthy
@@ -154,6 +174,8 @@ services:
         condition: service_started
       backend-ai:
         condition: service_healthy
+    networks:
+      - backend
 
   backend-node:
     build:
@@ -168,24 +190,125 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
     ports:
-      - "${NODE_PORT}:3000"
-      - "${WS_PORT}:3001"
+      - "127.0.0.1:${NODE_PORT}:3000"
+      - "127.0.0.1:${WS_PORT}:3001"
+    expose:
+      - "3000"
+      - "3001"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     depends_on:
       - backend-java
       - redis
+    networks:
+      - backend
+
+  gateway:
+    build:
+      context: ../gateway-java
+    container_name: uav-gateway
+    restart: always
+    environment:
+      SERVER_PORT: 8080
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
+      NODE_BFF_URL: http://backend-node:3000
+      NODE_WS_URL: ws://backend-node:3001
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      GATEWAY_ALLOWED_ORIGIN: ${GATEWAY_ALLOWED_ORIGIN:-http://localhost:8888}
+      GATEWAY_SECURITY_ENABLED: ${GATEWAY_SECURITY_ENABLED:-true}
+      GATEWAY_JWT_JWK_SET_URI: ${GATEWAY_JWT_JWK_SET_URI:-http://keycloak:8080/realms/uav/protocol/openid-connect/certs}
+      GATEWAY_JWT_ISSUER_URI: ${GATEWAY_JWT_ISSUER_URI:-http://localhost:8180/realms/uav}
+      GATEWAY_JWT_AUDIENCE: ${GATEWAY_JWT_AUDIENCE:-uav-web}
+      GATEWAY_JWT_CLIENT_ID: ${GATEWAY_JWT_CLIENT_ID:-uav-web}
+      GATEWAY_RATE_LIMIT_REPLENISH_RATE: ${GATEWAY_RATE_LIMIT_REPLENISH_RATE:-20}
+      GATEWAY_RATE_LIMIT_BURST_CAPACITY: ${GATEWAY_RATE_LIMIT_BURST_CAPACITY:-40}
+      GATEWAY_AI_RATE_LIMIT_REPLENISH_RATE: ${GATEWAY_AI_RATE_LIMIT_REPLENISH_RATE:-1}
+      GATEWAY_AI_RATE_LIMIT_BURST_CAPACITY: ${GATEWAY_AI_RATE_LIMIT_BURST_CAPACITY:-2}
+      GATEWAY_WS_RATE_LIMIT_REPLENISH_RATE: ${GATEWAY_WS_RATE_LIMIT_REPLENISH_RATE:-5}
+      GATEWAY_WS_RATE_LIMIT_BURST_CAPACITY: ${GATEWAY_WS_RATE_LIMIT_BURST_CAPACITY:-10}
+      GATEWAY_TRUSTED_PROXY_COUNT: ${GATEWAY_TRUSTED_PROXY_COUNT:-1}
+      GATEWAY_MAX_REQUEST_SIZE: ${GATEWAY_MAX_REQUEST_SIZE:-20MB}
+    ports:
+      - "127.0.0.1:${GATEWAY_PORT:-8082}:8080"
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    depends_on:
+      backend-node:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+      redis:
+        condition: service_started
+    networks:
+      - edge
+      - backend
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.0
+    container_name: uav-keycloak
+    restart: unless-stopped
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USERNAME:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-change-me-before-start}
+      KC_HOSTNAME: ${KEYCLOAK_PUBLIC_URL:-http://localhost:8180}
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+      UAV_SERVICE_CLIENT_SECRET: ${KEYCLOAK_UAV_SERVICE_CLIENT_SECRET:-}
+      UAV_DEV_USER_PASSWORD: ${KEYCLOAK_DEV_USER_PASSWORD:-}
+    ports:
+      - "127.0.0.1:${KEYCLOAK_PORT:-8180}:8080"
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+      - ./keycloak/uav-realm.json:/opt/keycloak/data/import/uav-realm.json:ro
+    networks:
+      - edge
 
   frontend:
     build:
       context: ../frontend
+      args:
+        VITE_KEYCLOAK_URL: ${KEYCLOAK_PUBLIC_URL:-http://localhost:8180}
+        VITE_KEYCLOAK_REALM: uav
+        VITE_KEYCLOAK_CLIENT_ID: uav-web
     container_name: uav-frontend
     restart: always
+    environment:
+      NGINX_SERVER_NAME: ${NGINX_SERVER_NAME:-localhost}
     ports:
       - "${FRONTEND_PORT:-8888}:80"
+      - "${HTTPS_PORT:-8443}:443"
+    volumes:
+      - ./nginx/certs:/etc/nginx/certs:ro
     depends_on:
-      - backend-node
+      gateway:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    networks:
+      - edge
 
 volumes:
   mysql_data:
   redis_data:
   rabbitmq_data:
   minio_data:
+  keycloak_data:
+
+networks:
+  edge:
+    name: uav-edge
+  backend:
+    name: uav-backend

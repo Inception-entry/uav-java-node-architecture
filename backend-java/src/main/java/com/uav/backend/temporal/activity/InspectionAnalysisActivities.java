@@ -8,4 +8,11 @@ public interface InspectionAnalysisActivities {
 
     @ActivityMethod
     String analyzeTask(String taskCode, String question);
+
+    @ActivityMethod
+    String chatTask(
+            String taskCode,
+            String sessionId,
+            String question
+    );
 }

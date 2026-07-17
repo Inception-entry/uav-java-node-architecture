@@ -32,7 +32,12 @@ export default defineConfig({
     open: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:8082',
+        changeOrigin: true,
+      },
+      '/socket.io': {
+        target: 'ws://localhost:8082',
+        ws: true,
         changeOrigin: true,
       },
     },

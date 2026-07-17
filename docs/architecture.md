@@ -2,6 +2,21 @@
 
 ## 推荐职责边界
 
+Nginx 负责：
+
+- 域名入口和 HTTP/HTTPS 终止
+- Vue/Cesium 静态资源托管与缓存
+- 将 `/api/` 和 `/socket.io/` 转发给 Spring Cloud Gateway
+- 上传大小、代理超时和基础安全响应头
+
+Spring Cloud Gateway 负责：
+
+- JWT 鉴权、issuer/audience 校验与 Keycloak 角色解析（默认关闭）
+- Node BFF API 与 WebSocket 服务路由
+- 基于 Redis 的请求限流
+- 统一请求 ID、访问日志和网关指标
+- 将可信用户 ID、用户名和角色传给 BFF
+
 Java 负责：
 
 - 用户权限
@@ -16,6 +31,7 @@ Java 负责：
 Node.js 负责：
 
 - 前端 BFF 聚合
+- 页面接口的数据转换与前端业务编排
 - Cesium 地图接口聚合
 - WebSocket 实时推送
 - 调用 Java 服务
@@ -31,7 +47,9 @@ Python AI 服务后续负责：
 ## 推荐通信方式
 
 ```text
-前端 -> Node.js: HTTP + WebSocket
+浏览器 -> Nginx: HTTPS + 静态资源
+Nginx -> Spring Cloud Gateway: HTTP + WebSocket
+Spring Cloud Gateway -> Node.js BFF: HTTP + WebSocket
 Node.js -> Java: REST
 Python -> Java: RabbitMQ / REST
 Java -> MinIO: 保存证据截图、视频片段
@@ -39,6 +57,48 @@ Java -> MySQL: 保存业务数据
 Java / Node -> Redis: 缓存、在线状态
 Java -> Temporal: 启动、查询、推进巡检工作流
 ```
+
+## 网关预置配置
+
+默认访问链路：
+
+```text
+http://localhost:8888/api/**
+  -> Nginx
+  -> Spring Cloud Gateway
+  -> Node BFF
+  -> Java
+```
+
+Gateway 默认在宿主机 `8082` 端口开放调试入口，并提供：
+
+- `GET /actuator/health`：健康检查。
+- `/api/**`：转发到 Node BFF 的 `3000` 端口。
+- `/socket.io/**`：转发到 Node 实时服务的 `3001` 端口。
+- 默认每个用户或客户端 IP 每秒补充 20 个令牌，突发容量 40。
+
+开启 JWT 鉴权前，需要先准备兼容 JWT/JWK 的身份中心，然后设置：
+
+```dotenv
+GATEWAY_SECURITY_ENABLED=true
+GATEWAY_JWT_JWK_SET_URI=https://auth.example.com/realms/uav/protocol/openid-connect/certs
+GATEWAY_JWT_ISSUER_URI=https://auth.example.com/realms/uav
+GATEWAY_JWT_AUDIENCE=uav-web
+```
+
+无论 JWT 是否启用，Gateway 都会删除客户端传入的
+`X-Authenticated-User`、`X-Authenticated-Username` 和
+`X-Authenticated-Roles`。完整的本地 Keycloak 启用步骤见
+[`docs/gateway.md`](gateway.md)。
+
+Nginx 默认使用 HTTP 配置。启用 HTTPS 时：
+
+1. 将 `frontend/nginx.https.conf.example` 复制为 `frontend/nginx.conf`。
+2. 将证书分别放到 `deploy/nginx/certs/fullchain.pem` 和
+   `deploy/nginx/certs/privkey.pem`。
+3. 在 `deploy/.env` 配置真实 `NGINX_SERVER_NAME`、
+   `GATEWAY_ALLOWED_ORIGIN` 和 `HTTPS_PORT=443`。
+4. 执行 `./scripts/uav.sh rebuild frontend`。
 
 ## Temporal 融合建议
 

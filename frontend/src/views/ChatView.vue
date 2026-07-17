@@ -25,6 +25,14 @@
           :disabled="submitting"
         />
         <span class="model-badge">my-drone-expert</span>
+        <button
+          class="new-chat-button"
+          type="button"
+          :disabled="submitting"
+          @click="startNewConversation"
+        >
+          新对话
+        </button>
       </div>
 
       <section ref="messagePanel" class="message-panel">
@@ -140,6 +148,7 @@ const suggestions = [
 const taskCode = ref('TASK-001')
 const question = ref('')
 const messages = ref<ChatMessage[]>([])
+const sessionId = ref(crypto.randomUUID())
 const submitting = ref(false)
 const errorMessage = ref('')
 const messagePanel = ref<HTMLElement>()
@@ -181,6 +190,7 @@ const sendMessage = async () => {
   try {
     const result = await analyzeInspectionTask(
       currentTaskCode,
+      sessionId.value,
       currentQuestion,
     )
 
@@ -198,6 +208,13 @@ const sendMessage = async () => {
     submitting.value = false
     await scrollToLatest()
   }
+}
+
+const startNewConversation = () => {
+  sessionId.value = crypto.randomUUID()
+  messages.value = []
+  question.value = ''
+  errorMessage.value = ''
 }
 </script>
 
@@ -303,6 +320,21 @@ const sendMessage = async () => {
   font-weight: 700;
   background: #d1fae5;
   border-radius: 999px;
+}
+
+.new-chat-button {
+  padding: 7px 11px;
+  color: #334155;
+  font-weight: 700;
+  cursor: pointer;
+  background: white;
+  border: 1px solid #d8e0ec;
+  border-radius: 8px;
+}
+
+.new-chat-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .message-panel {

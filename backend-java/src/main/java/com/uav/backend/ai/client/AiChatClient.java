@@ -17,10 +17,10 @@ public class AiChatClient {
         this.restClient = builder.baseUrl(baseUrl).build();
     }
 
-    public String chat(String message) {
+    public String chat(String sessionId, String message) {
         AiChatResponse response = restClient.post()
                 .uri("/api/chat")
-                .body(new AiChatRequest(message))
+                .body(new AiChatRequest(sessionId, message))
                 .retrieve()
                 .body(AiChatResponse.class);
 
