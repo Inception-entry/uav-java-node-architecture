@@ -10,9 +10,14 @@
           </p>
         </div>
 
-        <RouterLink class="back-link" to="/drone">
-          返回任务列表
-        </RouterLink>
+        <nav class="header-links">
+          <RouterLink class="back-link" to="/knowledge">
+            知识库
+          </RouterLink>
+          <RouterLink class="back-link" to="/drone">
+            返回任务列表
+          </RouterLink>
+        </nav>
       </header>
 
       <div class="task-bar">
@@ -279,6 +284,12 @@ const startNewConversation = () => {
   text-decoration: none;
   background: #f1f5f9;
   border-radius: 9px;
+}
+
+.header-links {
+  display: flex;
+  gap: 8px;
+  padding-right: 220px;
 }
 
 .task-bar {
@@ -596,6 +607,10 @@ const startNewConversation = () => {
 
   .chat-header {
     align-items: flex-start;
+  }
+
+  .header-links {
+    padding-right: 0;
   }
 
   .chat-header h1 {

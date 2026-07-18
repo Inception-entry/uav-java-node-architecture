@@ -62,6 +62,21 @@ spring:
             - name: RequestSize
               args:
                 maxSize: ${GATEWAY_MAX_REQUEST_SIZE:20MB}
+        - id: node-bff-knowledge
+          order: -9
+          uri: ${NODE_BFF_URL:http://localhost:3000}
+          predicates:
+            - Path=/api/knowledge/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: '#{@gatewayKeyResolver}'
+                redis-rate-limiter.replenishRate: ${GATEWAY_KNOWLEDGE_RATE_LIMIT_REPLENISH_RATE:5}
+                redis-rate-limiter.burstCapacity: ${GATEWAY_KNOWLEDGE_RATE_LIMIT_BURST_CAPACITY:10}
+                redis-rate-limiter.requestedTokens: 1
+            - name: RequestSize
+              args:
+                maxSize: ${GATEWAY_MAX_REQUEST_SIZE:20MB}
         - id: node-bff-api
           order: 0
           uri: ${NODE_BFF_URL:http://localhost:3000}

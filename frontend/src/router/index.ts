@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Home from '../views/Home.vue'
 import DroneView from '../views/DroneView.vue'
 import ChatView from '../views/ChatView.vue'
+import KnowledgeView from '../views/KnowledgeView.vue'
 import AuthorizationErrorView from '../views/AuthorizationErrorView.vue'
 
 const routes = [
@@ -18,6 +19,11 @@ const routes = [
     path: '/chat',
     name: 'chat',
     component: ChatView
+  },
+  {
+    path: '/knowledge',
+    name: 'knowledge',
+    component: KnowledgeView
   },
   {
     path: '/401',

@@ -18,9 +18,16 @@ public class AiChatClient {
     }
 
     public String chat(String sessionId, String message) {
+        return chat(sessionId, message, null);
+    }
+
+    public String chat(
+            String sessionId,
+            String message,
+            String knowledgeQuery) {
         AiChatResponse response = restClient.post()
                 .uri("/api/chat")
-                .body(new AiChatRequest(sessionId, message))
+                .body(new AiChatRequest(sessionId, message, knowledgeQuery))
                 .retrieve()
                 .body(AiChatResponse.class);
 

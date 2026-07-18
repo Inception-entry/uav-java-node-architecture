@@ -68,7 +68,7 @@ public class InspectionAnalysisActivitiesImpl
                 question
         );
 
-        return aiChatClient.chat(sessionId, prompt);
+        return aiChatClient.chat(sessionId, prompt, question);
     }
 
     private String valueOrUnknown(String value) {

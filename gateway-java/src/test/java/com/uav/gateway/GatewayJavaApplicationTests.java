@@ -32,6 +32,7 @@ class GatewayJavaApplicationTests {
                 .extracting(RouteDefinition::getId)
                 .containsExactlyInAnyOrder(
                         "node-bff-analysis",
+                        "node-bff-knowledge",
                         "node-bff-api",
                         "node-bff-websocket",
                         "node-bff-socket-http"

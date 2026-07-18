@@ -20,6 +20,9 @@
           <RouterLink class="chat-link" to="/chat">
             AI 智能分析
           </RouterLink>
+          <RouterLink class="knowledge-link" to="/knowledge">
+            知识库
+          </RouterLink>
         </div>
       </header>
 
@@ -477,6 +480,7 @@ small,
 }
 
 .chat-link,
+.knowledge-link,
 button {
   padding: 9px 13px;
   border: 1px solid #d7dfeb;
@@ -492,6 +496,13 @@ button {
   text-decoration: none;
   background: #2563eb;
   border-color: #2563eb;
+}
+
+.knowledge-link {
+  color: #1d4ed8;
+  text-decoration: none;
+  background: #eff6ff;
+  border-color: #bfdbfe;
 }
 
 .secondary-button {

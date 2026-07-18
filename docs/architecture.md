@@ -40,6 +40,8 @@ Node.js 负责：
 
 Python AI 服务后续负责：
 
+- LangChain + Ollama 本地对话和任务分析
+- Qdrant 文档向量化、语义检索和来源追踪
 - YOLO 推理
 - 视频抽帧
 - 截图保存
@@ -53,6 +55,8 @@ Nginx -> Spring Cloud Gateway: HTTP + WebSocket
 Spring Cloud Gateway -> Node.js BFF: HTTP + WebSocket
 Node.js -> Java: REST
 Python -> Java: RabbitMQ / REST
+Java -> Python AI: REST（聊天、知识文档管理和检索）
+Python AI -> Qdrant: 文档向量和元数据
 Java -> MinIO: 保存证据截图、视频片段
 Java -> MySQL: 保存业务数据
 Java / Node -> Redis: 缓存、在线状态

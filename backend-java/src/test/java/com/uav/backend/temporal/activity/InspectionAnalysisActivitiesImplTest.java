@@ -38,7 +38,8 @@ class InspectionAnalysisActivitiesImplTest {
                 ));
         when(aiChatClient.chat(
                 org.mockito.ArgumentMatchers.eq("session-001"),
-                org.mockito.ArgumentMatchers.anyString()
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.eq("是否可以继续飞行？")
         ))
                 .thenReturn("分析结果");
 
@@ -58,7 +59,8 @@ class InspectionAnalysisActivitiesImplTest {
                 ArgumentCaptor.forClass(String.class);
         verify(aiChatClient).chat(
                 org.mockito.ArgumentMatchers.eq("session-001"),
-                prompt.capture()
+                prompt.capture(),
+                org.mockito.ArgumentMatchers.eq("是否可以继续飞行？")
         );
 
         assertThat(result).isEqualTo("分析结果");

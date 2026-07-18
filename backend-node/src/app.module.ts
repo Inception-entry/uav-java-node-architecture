@@ -7,6 +7,7 @@ import { AlarmController } from './alarm/alarm.controller';
 import { InspectionTaskController } from './inspection-task/inspection-task.controller';
 import { AlarmRealtimeGateway } from './realtime/alarm-realtime.gateway';
 import { KeycloakJwtService } from './auth/keycloak-jwt.service';
+import { KnowledgeController } from './knowledge/knowledge.controller';
 
 @Module({
   imports: [
@@ -16,7 +17,8 @@ import { KeycloakJwtService } from './auth/keycloak-jwt.service';
   controllers: [
     HealthController,
     AlarmController,
-    InspectionTaskController
+    InspectionTaskController,
+    KnowledgeController,
   ],
   providers: [
     JavaClientService,

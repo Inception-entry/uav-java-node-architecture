@@ -7,7 +7,11 @@ dependencies = [
     "fastapi>=0.116,<1",
     "httpx>=0.28,<1",
     "langchain-ollama>=1,<2",
+    "langchain-text-splitters>=1,<2",
     "pydantic-settings>=2.10,<3",
+    "pypdf>=6,<7",
+    "python-multipart>=0.0.20,<1",
+    "qdrant-client>=1.18,<2",
     "redis>=5,<8",
     "uvicorn[standard]>=0.35,<1",
 ]

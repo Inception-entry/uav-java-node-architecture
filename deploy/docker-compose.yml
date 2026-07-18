@@ -33,6 +33,17 @@ services:
     networks:
       - backend
 
+  qdrant:
+    image: qdrant/qdrant:v1.18.3
+    container_name: uav-qdrant
+    restart: always
+    ports:
+      - "127.0.0.1:${QDRANT_HOST_PORT:-6333}:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - backend
+
   rabbitmq:
     image: rabbitmq:4-management
     container_name: uav-rabbitmq
@@ -108,13 +119,23 @@ services:
     depends_on:
       redis:
         condition: service_started
+      qdrant:
+        condition: service_started
     environment:
       AI_OLLAMA_BASE_URL: http://127.0.0.1:11434
       AI_OLLAMA_MODEL: ${AI_OLLAMA_MODEL:-my-drone-expert}
+      AI_OLLAMA_EMBEDDING_MODEL: ${AI_OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
       AI_OLLAMA_TIMEOUT_SECONDS: ${AI_OLLAMA_TIMEOUT_SECONDS:-120}
       AI_REDIS_URL: redis://127.0.0.1:${REDIS_HOST_PORT:-6380}/0
+      AI_QDRANT_URL: http://127.0.0.1:${QDRANT_HOST_PORT:-6333}
+      AI_QDRANT_COLLECTION: ${AI_QDRANT_COLLECTION:-uav_knowledge}
       AI_CHAT_HISTORY_TURNS: ${AI_CHAT_HISTORY_TURNS:-6}
       AI_CHAT_SESSION_TTL_SECONDS: ${AI_CHAT_SESSION_TTL_SECONDS:-86400}
+      AI_KNOWLEDGE_CHUNK_SIZE: ${AI_KNOWLEDGE_CHUNK_SIZE:-800}
+      AI_KNOWLEDGE_CHUNK_OVERLAP: ${AI_KNOWLEDGE_CHUNK_OVERLAP:-120}
+      AI_KNOWLEDGE_TOP_K: ${AI_KNOWLEDGE_TOP_K:-4}
+      AI_KNOWLEDGE_SCORE_THRESHOLD: ${AI_KNOWLEDGE_SCORE_THRESHOLD:-0.25}
+      AI_KNOWLEDGE_MAX_FILE_SIZE_BYTES: ${AI_KNOWLEDGE_MAX_FILE_SIZE_BYTES:-10485760}
     healthcheck:
       test:
         - CMD
@@ -238,6 +259,8 @@ services:
       GATEWAY_RATE_LIMIT_BURST_CAPACITY: ${GATEWAY_RATE_LIMIT_BURST_CAPACITY:-40}
       GATEWAY_AI_RATE_LIMIT_REPLENISH_RATE: ${GATEWAY_AI_RATE_LIMIT_REPLENISH_RATE:-1}
       GATEWAY_AI_RATE_LIMIT_BURST_CAPACITY: ${GATEWAY_AI_RATE_LIMIT_BURST_CAPACITY:-2}
+      GATEWAY_KNOWLEDGE_RATE_LIMIT_REPLENISH_RATE: ${GATEWAY_KNOWLEDGE_RATE_LIMIT_REPLENISH_RATE:-5}
+      GATEWAY_KNOWLEDGE_RATE_LIMIT_BURST_CAPACITY: ${GATEWAY_KNOWLEDGE_RATE_LIMIT_BURST_CAPACITY:-10}
       GATEWAY_WS_RATE_LIMIT_REPLENISH_RATE: ${GATEWAY_WS_RATE_LIMIT_REPLENISH_RATE:-5}
       GATEWAY_WS_RATE_LIMIT_BURST_CAPACITY: ${GATEWAY_WS_RATE_LIMIT_BURST_CAPACITY:-10}
       GATEWAY_TRUSTED_PROXY_COUNT: ${GATEWAY_TRUSTED_PROXY_COUNT:-1}
@@ -316,6 +339,7 @@ volumes:
   rabbitmq_data:
   minio_data:
   keycloak_data:
+  qdrant_data:
 
 networks:
   edge:

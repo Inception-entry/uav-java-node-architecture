@@ -66,6 +66,23 @@ class GatewaySecurityIntegrationTest {
     }
 
     @Test
+    void viewerCannotUploadKnowledgeDocument() {
+        webTestClient.mutateWith(mockJwt().authorities(
+                        new SimpleGrantedAuthority("ROLE_VIEWER")
+                ))
+                .post()
+                .uri("/api/knowledge/documents")
+                .header("X-Request-Id", "gateway-knowledge-role-test")
+                .bodyValue("document")
+                .exchange()
+                .expectStatus().isForbidden()
+                .expectBody()
+                .jsonPath("$.code").isEqualTo("FORBIDDEN")
+                .jsonPath("$.requestId")
+                .isEqualTo("gateway-knowledge-role-test");
+    }
+
+    @Test
     void authenticatedUserNeedsBusinessRoleToReadApi() {
         webTestClient.mutateWith(mockJwt())
                 .get()
