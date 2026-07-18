@@ -100,6 +100,18 @@ export function login() {
   return keycloak.login({ redirectUri: window.location.href })
 }
 
+export function reauthenticate(redirectPath = '/') {
+  const redirectUrl = new URL(redirectPath, window.location.origin)
+  if (redirectUrl.origin !== window.location.origin) {
+    redirectUrl.href = `${window.location.origin}/`
+  }
+  keycloak.clearToken()
+  return keycloak.login({
+    redirectUri: redirectUrl.href,
+    prompt: 'login',
+  })
+}
+
 export function logout() {
   return keycloak.logout({ redirectUri: `${window.location.origin}/` })
 }

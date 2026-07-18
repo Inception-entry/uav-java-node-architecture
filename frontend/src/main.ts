@@ -7,6 +7,7 @@ import register from './components/pe-global-register'
 import i18next from "i18next"
 import I18NextVue from "i18next-vue"
 import { initializeAuthentication } from '@/auth/keycloak'
+import { connectAlarmRealtime } from '@/realtime/socket'
 
 // global css
 import '@/style/common.scss'
@@ -34,6 +35,9 @@ async function bootstrap() {
 
   register(app)
   app.mount('#app')
+  void connectAlarmRealtime().catch((error: unknown) => {
+    console.error('实时告警连接初始化失败', error)
+  })
 }
 
 void bootstrap().catch((error: unknown) => {

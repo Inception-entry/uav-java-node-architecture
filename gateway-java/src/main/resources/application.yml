@@ -78,7 +78,21 @@ spring:
               args:
                 maxSize: ${GATEWAY_MAX_REQUEST_SIZE:20MB}
         - id: node-bff-websocket
+          order: -10
           uri: ${NODE_WS_URL:ws://localhost:3001}
+          predicates:
+            - Path=/socket.io/**
+            - Header=Upgrade, (?i)websocket
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: '#{@gatewayKeyResolver}'
+                redis-rate-limiter.replenishRate: ${GATEWAY_WS_RATE_LIMIT_REPLENISH_RATE:5}
+                redis-rate-limiter.burstCapacity: ${GATEWAY_WS_RATE_LIMIT_BURST_CAPACITY:10}
+                redis-rate-limiter.requestedTokens: 1
+        - id: node-bff-socket-http
+          order: -5
+          uri: ${NODE_WS_HTTP_URL:http://localhost:3001}
           predicates:
             - Path=/socket.io/**
           filters:

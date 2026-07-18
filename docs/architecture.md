@@ -11,7 +11,7 @@ Nginx 负责：
 
 Spring Cloud Gateway 负责：
 
-- JWT 鉴权、issuer/audience 校验与 Keycloak 角色解析（默认关闭）
+- JWT 鉴权、issuer/audience 校验与 Keycloak 角色解析（默认开启）
 - Node BFF API 与 WebSocket 服务路由
 - 基于 Redis 的请求限流
 - 统一请求 ID、访问日志和网关指标
@@ -34,6 +34,7 @@ Node.js 负责：
 - 页面接口的数据转换与前端业务编排
 - Cesium 地图接口聚合
 - WebSocket 实时推送
+- Socket.IO 握手 JWT 验签、角色校验和 Token 到期断连
 - 调用 Java 服务
 - 后续对接 Python AI 服务
 

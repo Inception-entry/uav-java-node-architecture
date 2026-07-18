@@ -6,6 +6,7 @@ import { JavaClientService } from './shared/java-client.service';
 import { AlarmController } from './alarm/alarm.controller';
 import { InspectionTaskController } from './inspection-task/inspection-task.controller';
 import { AlarmRealtimeGateway } from './realtime/alarm-realtime.gateway';
+import { KeycloakJwtService } from './auth/keycloak-jwt.service';
 
 @Module({
   imports: [
@@ -17,6 +18,10 @@ import { AlarmRealtimeGateway } from './realtime/alarm-realtime.gateway';
     AlarmController,
     InspectionTaskController
   ],
-  providers: [JavaClientService, AlarmRealtimeGateway],
+  providers: [
+    JavaClientService,
+    KeycloakJwtService,
+    AlarmRealtimeGateway,
+  ],
 })
 export class AppModule {}

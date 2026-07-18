@@ -189,6 +189,10 @@ services:
       JAVA_BASE_URL: http://backend-java:8080
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      AUTH_JWT_JWK_SET_URI: ${GATEWAY_JWT_JWK_SET_URI:-http://keycloak:8080/realms/uav/protocol/openid-connect/certs}
+      AUTH_JWT_ISSUER_URI: ${GATEWAY_JWT_ISSUER_URI:-http://localhost:8180/realms/uav}
+      AUTH_JWT_AUDIENCE: ${GATEWAY_JWT_AUDIENCE:-uav-web}
+      WS_ALLOWED_ORIGIN: ${GATEWAY_ALLOWED_ORIGIN:-http://localhost:8888}
     ports:
       - "127.0.0.1:${NODE_PORT}:3000"
       - "127.0.0.1:${WS_PORT}:3001"
@@ -202,8 +206,12 @@ services:
       retries: 5
       start_period: 10s
     depends_on:
-      - backend-java
-      - redis
+      backend-java:
+        condition: service_started
+      keycloak:
+        condition: service_started
+      redis:
+        condition: service_started
     networks:
       - backend
 
@@ -217,6 +225,7 @@ services:
       JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
       NODE_BFF_URL: http://backend-node:3000
       NODE_WS_URL: ws://backend-node:3001
+      NODE_WS_HTTP_URL: http://backend-node:3001
       REDIS_HOST: redis
       REDIS_PORT: 6379
       GATEWAY_ALLOWED_ORIGIN: ${GATEWAY_ALLOWED_ORIGIN:-http://localhost:8888}
@@ -275,6 +284,7 @@ services:
       - ./keycloak/uav-realm.json:/opt/keycloak/data/import/uav-realm.json:ro
     networks:
       - edge
+      - backend
 
   frontend:
     build:

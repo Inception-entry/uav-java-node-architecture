@@ -65,9 +65,11 @@ public class GatewaySecurityConfig {
                         .pathMatchers(
                                 "/actuator/health",
                                 "/actuator/info",
-                                "/api/health",
-                                "/socket.io/**"
+                                "/api/health"
                         ).permitAll()
+                        // 浏览器把 JWT 放在 Socket.IO auth payload 中，
+                        // 由 Node BFF 握手中间件完成验签和角色校验。
+                        .pathMatchers("/socket.io/**").permitAll()
                         .pathMatchers("/actuator/**").hasRole("ADMIN")
                         .pathMatchers(HttpMethod.GET, "/api/**")
                         .hasAnyRole("ADMIN", "OPERATOR", "VIEWER")

@@ -102,16 +102,25 @@ GATEWAY_JWT_AUDIENCE=uav-web
 GATEWAY_JWT_CLIENT_ID=uav-web
 ```
 
-然后重新创建 Gateway 和前端，使新的容器环境变量生效：
+然后重新创建 Node BFF、Gateway 和前端，使新的容器环境变量生效：
 
 ```bash
-./scripts/uav.sh rebuild gateway frontend
+./scripts/uav.sh rebuild backend-node gateway frontend
 ```
 
 Vue 启动后会跳转到 Keycloak，使用 `uav-admin` 和 `deploy/.env` 中的
 `KEYCLOAK_DEV_USER_PASSWORD` 登录。前端只使用 Authorization Code + PKCE，
 不会持有 `uav-service` Client Secret。登录成功后，每次 API 请求都会自动刷新
 并携带 Access Token。
+
+Socket.IO 使用 `handshake.auth.token` 传递同一个短期 Access Token，Token 不会
+出现在 URL 或代理访问日志中。Gateway 保留 `/socket.io/**` 的传输层路由与限流，
+Node BFF 在 Socket.IO 中间件中通过 Keycloak JWKS 校验 RS256 签名、Issuer、
+Audience、有效期及业务角色。Token 到期后服务端会断开连接，Vue 刷新 Token 后
+自动重连。
+
+REST 请求最终返回 `401` 或 `403` 时，Vue 分别进入 `/401`、`/403` 页面；401
+页面支持强制重新登录，403 页面会展示当前用户和业务角色。
 
 开启后，以下路径保持公开：
 
@@ -140,8 +149,9 @@ Authorization: Bearer <access-token>
 `GATEWAY_AI_RATE_LIMIT_REPLENISH_RATE` 和
 `GATEWAY_AI_RATE_LIMIT_BURST_CAPACITY` 单独调整。
 
-`/socket.io/**` 暂时保持公开，是因为浏览器 WebSocket 握手还没有接入
-Token。下一阶段应由 Node BFF 在 Socket.IO 握手阶段验证 JWT。
+`/socket.io/**` 在 Gateway HTTP 安全规则中保持公开，只表示允许 Engine.IO
+建立传输连接。Socket.IO namespace 握手仍必须在 `auth.token` 中提供 JWT，
+Node BFF 验签和角色校验失败时会拒绝连接。这样可以避免把 Token 放入查询参数。
 
 ## 传给 BFF 的可信身份
 

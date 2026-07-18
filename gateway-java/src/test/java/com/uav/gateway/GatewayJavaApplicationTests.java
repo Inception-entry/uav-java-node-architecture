@@ -33,7 +33,8 @@ class GatewayJavaApplicationTests {
                 .containsExactlyInAnyOrder(
                         "node-bff-analysis",
                         "node-bff-api",
-                        "node-bff-websocket"
+                        "node-bff-websocket",
+                        "node-bff-socket-http"
                 );
 
         RouteDefinition analysisRoute = routes.stream()
