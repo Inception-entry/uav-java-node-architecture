@@ -43,6 +43,11 @@ spring:
 app:
   ai:
     base-url: ${AI_BASE_URL:http://localhost:8000}
+    connect-timeout: ${AI_CONNECT_TIMEOUT:3s}
+    read-timeout: ${AI_READ_TIMEOUT:250s}
+    max-attempts: ${AI_MAX_ATTEMPTS:2}
+    initial-backoff: ${AI_INITIAL_BACKOFF:500ms}
+    max-backoff: ${AI_MAX_BACKOFF:2s}
   minio:
     endpoint: ${MINIO_ENDPOINT:http://localhost:9011}
     access-key: ${MINIO_ACCESS_KEY:minioadmin}

@@ -1,11 +1,14 @@
 package com.uav.backend.temporal.activity;
 
 import com.uav.backend.ai.client.AiChatClient;
+import com.uav.backend.ai.client.AiClientException;
+import com.uav.backend.ai.client.AiErrorCode;
 import com.uav.backend.ai.domain.AnalysisChannel;
 import com.uav.backend.ai.dto.AiChatResponse;
 import com.uav.backend.ai.dto.InspectionAnalysisRecordResponse;
 import com.uav.backend.ai.service.InspectionAnalysisPromptService;
 import com.uav.backend.ai.service.InspectionAnalysisRecordService;
+import io.temporal.failure.ApplicationFailure;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
@@ -13,6 +16,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -134,5 +138,63 @@ class InspectionAnalysisActivitiesImplTest {
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.anyList()
         );
+    }
+
+    @Test
+    void shouldMarkRejectedAiRequestAsNonRetryableForTemporal() {
+        assertTemporalFailure(
+                AiErrorCode.REQUEST_REJECTED,
+                true
+        );
+    }
+
+    @Test
+    void shouldKeepUnavailableAiServiceRetryableForTemporal() {
+        assertTemporalFailure(
+                AiErrorCode.UPSTREAM_UNAVAILABLE,
+                false
+        );
+    }
+
+    private void assertTemporalFailure(
+            AiErrorCode errorCode,
+            boolean nonRetryable) {
+        AiChatClient aiChatClient = mock(AiChatClient.class);
+        InspectionAnalysisPromptService promptService =
+                mock(InspectionAnalysisPromptService.class);
+        InspectionAnalysisRecordService recordService =
+                mock(InspectionAnalysisRecordService.class);
+        when(recordService.findCompletedAnswer("analysis-failure"))
+                .thenReturn(Optional.empty());
+        when(promptService.buildPrompt("TASK-001", "问题"))
+                .thenReturn("prompt");
+        when(aiChatClient.chatResponse(
+                "session-001",
+                "prompt",
+                "问题"
+        )).thenThrow(new AiClientException(errorCode));
+
+        InspectionAnalysisActivitiesImpl activities =
+                new InspectionAnalysisActivitiesImpl(
+                        aiChatClient,
+                        promptService,
+                        recordService
+                );
+
+        assertThatThrownBy(() -> activities.chatTask(
+                "TASK-001",
+                "session-001",
+                "问题",
+                "analysis-failure"
+        ))
+                .isInstanceOfSatisfying(
+                        ApplicationFailure.class,
+                        failure -> {
+                            assertThat(failure.getType())
+                                    .isEqualTo(errorCode.name());
+                            assertThat(failure.isNonRetryable())
+                                    .isEqualTo(nonRetryable);
+                        }
+                );
     }
 }

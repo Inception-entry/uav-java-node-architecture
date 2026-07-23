@@ -2,6 +2,7 @@ package com.uav.backend.ai;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uav.backend.ai.client.AiChatClient;
+import com.uav.backend.ai.client.AiClientException;
 import com.uav.backend.ai.domain.AnalysisChannel;
 import com.uav.backend.ai.dto.InspectionAnalysisRequest;
 import com.uav.backend.ai.service.InspectionAnalysisPromptService;
@@ -85,15 +86,33 @@ public class InspectionStreamingController {
                         )
                 );
             } catch (Exception exception) {
+                String errorCode = exception instanceof AiClientException ai
+                        ? ai.errorCode().name()
+                        : "AI_STREAM_FAILED";
+                boolean retryable =
+                        exception instanceof AiClientException ai
+                                && ai.retryable();
                 log.error(
-                        "AI streaming analysis failed"
-                                + " analysisId={} taskCode={} sessionId={}",
+                        "event=inspection_ai_stream_failed analysisId={}"
+                                + " taskCode={} sessionId={} errorCode={}"
+                                + " retryable={} exceptionType={}",
                         analysisId,
                         taskCode,
                         currentSessionId,
-                        exception
+                        errorCode,
+                        retryable,
+                        exception.getClass().getSimpleName()
                 );
-                writeErrorEvent(outputStream);
+                boolean errorAlreadyForwarded =
+                        exception instanceof AiClientException ai
+                                && ai.errorEventForwarded();
+                if (!errorAlreadyForwarded) {
+                    writeErrorEvent(
+                            outputStream,
+                            errorCode,
+                            retryable
+                    );
+                }
             }
         };
 
@@ -104,11 +123,18 @@ public class InspectionStreamingController {
                 .body(body);
     }
 
-    private void writeErrorEvent(java.io.OutputStream outputStream) {
+    private void writeErrorEvent(
+            java.io.OutputStream outputStream,
+            String errorCode,
+            boolean retryable) {
         try {
             String data = objectMapper.writeValueAsString(Map.of(
+                    "code",
+                    errorCode,
                     "message",
-                    "AI 分析未完成或结果保存失败，请重试"
+                    "AI 分析未完成或结果保存失败，请重试",
+                    "retryable",
+                    retryable
             ));
             outputStream.write(
                     ("event: error\ndata: " + data + "\n\n")
@@ -117,8 +143,7 @@ public class InspectionStreamingController {
             outputStream.flush();
         } catch (IOException exception) {
             log.debug(
-                    "Unable to write SSE error event because client closed",
-                    exception
+                    "event=sse_error_write_skipped reason=client_closed"
             );
         }
     }

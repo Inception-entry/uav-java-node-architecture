@@ -1,10 +1,12 @@
 package com.uav.backend.temporal.activity;
 
 import com.uav.backend.ai.client.AiChatClient;
+import com.uav.backend.ai.client.AiClientException;
 import com.uav.backend.ai.domain.AnalysisChannel;
 import com.uav.backend.ai.dto.AiChatResponse;
 import com.uav.backend.ai.service.InspectionAnalysisPromptService;
 import com.uav.backend.ai.service.InspectionAnalysisRecordService;
+import io.temporal.failure.ApplicationFailure;
 import org.springframework.stereotype.Component;
 
 @Component("inspectionAnalysisActivities")
@@ -50,11 +52,16 @@ public class InspectionAnalysisActivitiesImpl
         }
 
         String prompt = promptService.buildPrompt(taskCode, question);
-        AiChatResponse response = aiChatClient.chatResponse(
-                sessionId,
-                prompt,
-                question
-        );
+        AiChatResponse response;
+        try {
+            response = aiChatClient.chatResponse(
+                    sessionId,
+                    prompt,
+                    question
+            );
+        } catch (AiClientException exception) {
+            throw temporalFailure(exception);
+        }
 
         return recordService.saveCompleted(
                 analysisId,
@@ -66,5 +73,21 @@ public class InspectionAnalysisActivitiesImpl
                 response.model(),
                 response.sources()
         ).answer();
+    }
+
+    private ApplicationFailure temporalFailure(
+            AiClientException exception) {
+        if (exception.retryable()) {
+            return ApplicationFailure.newFailureWithCause(
+                    exception.getMessage(),
+                    exception.errorCode().name(),
+                    exception
+            );
+        }
+        return ApplicationFailure.newNonRetryableFailureWithCause(
+                exception.getMessage(),
+                exception.errorCode().name(),
+                exception
+        );
     }
 }

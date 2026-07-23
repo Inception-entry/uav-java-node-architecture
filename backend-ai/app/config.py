@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -8,7 +9,17 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://127.0.0.1:11434"
     ollama_model: str = "my-drone-expert"
     ollama_embedding_model: str = "nomic-embed-text"
-    ollama_timeout_seconds: float = 120.0
+    ollama_timeout_seconds: float = Field(default=120.0, gt=0)
+    ollama_max_attempts: int = Field(default=2, ge=1, le=5)
+    ollama_initial_backoff_seconds: float = Field(
+        default=0.5,
+        ge=0,
+    )
+    ollama_max_backoff_seconds: float = Field(default=2.0, ge=0)
+    dependency_health_timeout_seconds: float = Field(
+        default=5.0,
+        gt=0,
+    )
     redis_url: str = "redis://127.0.0.1:6380/0"
     chat_history_turns: int = 6
     chat_session_ttl_seconds: int = 86_400

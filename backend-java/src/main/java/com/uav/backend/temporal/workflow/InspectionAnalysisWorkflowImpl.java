@@ -15,7 +15,7 @@ public class InspectionAnalysisWorkflowImpl
                     InspectionAnalysisActivities.class,
                     ActivityOptions.newBuilder()
                             .setStartToCloseTimeout(
-                                    Duration.ofSeconds(150))
+                                    Duration.ofSeconds(270))
                             .setRetryOptions(
                                     RetryOptions.newBuilder()
                                             .setInitialInterval(

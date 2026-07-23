@@ -1,6 +1,8 @@
 package com.uav.backend.common;
 
+import com.uav.backend.ai.client.AiClientException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -56,9 +58,19 @@ public class GlobalExceptionHandler {
         return ApiResponse.fail("数据冲突，请检查任务编号是否重复");
     }
 
+    @ExceptionHandler(AiClientException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAiClientException(
+            AiClientException ex) {
+        return ResponseEntity
+                .status(ex.errorCode().httpStatus())
+                .body(ApiResponse.fail(
+                        ex.errorCode().name() + ": " + ex.getMessage()
+                ));
+    }
+
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public ApiResponse<Void> handleException(Exception ex) {
-        return ApiResponse.fail(ex.getMessage());
+    public ApiResponse<Void> handleException() {
+        return ApiResponse.fail("服务器内部错误");
     }
 }

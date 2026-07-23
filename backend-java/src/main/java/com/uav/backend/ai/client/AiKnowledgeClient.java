@@ -4,7 +4,6 @@ import com.uav.backend.ai.dto.KnowledgeDeleteResponse;
 import com.uav.backend.ai.dto.KnowledgeDocumentResponse;
 import com.uav.backend.ai.dto.KnowledgeSearchRequest;
 import com.uav.backend.ai.dto.KnowledgeSearchResult;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.MediaType;
@@ -15,24 +14,34 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.UUID;
 
 @Component
 public class AiKnowledgeClient {
 
     private final RestClient restClient;
+    private final AiCallExecutor callExecutor;
 
     public AiKnowledgeClient(
-            RestClient.Builder builder,
-            @Value("${app.ai.base-url}") String baseUrl) {
-        this.restClient = builder.baseUrl(baseUrl).build();
+            AiRestClientFactory restClientFactory,
+            AiCallExecutor callExecutor) {
+        this.restClient = restClientFactory.create();
+        this.callExecutor = callExecutor;
     }
 
     public List<KnowledgeDocumentResponse> listDocuments() {
-        List<KnowledgeDocumentResponse> response = restClient.get()
-                .uri("/api/knowledge/documents")
-                .retrieve()
-                .body(new ParameterizedTypeReference<>() {
-                });
+        String requestId = UUID.randomUUID().toString();
+        List<KnowledgeDocumentResponse> response = callExecutor.execute(
+                "knowledge_list",
+                requestId,
+                null,
+                () -> restClient.get()
+                        .uri("/api/knowledge/documents")
+                        .header("X-Request-Id", requestId)
+                        .retrieve()
+                        .body(new ParameterizedTypeReference<>() {
+                        })
+        );
         return response == null ? List.of() : response;
     }
 
@@ -55,36 +64,61 @@ public class AiKnowledgeClient {
             throw new IllegalArgumentException("无法读取上传的文档", ex);
         }
 
-        KnowledgeDocumentResponse response = restClient.post()
-                .uri("/api/knowledge/documents")
-                .contentType(MediaType.MULTIPART_FORM_DATA)
-                .body(body.build())
-                .retrieve()
-                .body(KnowledgeDocumentResponse.class);
+        String requestId = UUID.randomUUID().toString();
+        KnowledgeDocumentResponse response = callExecutor.execute(
+                "knowledge_upload",
+                requestId,
+                null,
+                () -> restClient.post()
+                        .uri("/api/knowledge/documents")
+                        .header("X-Request-Id", requestId)
+                        .contentType(MediaType.MULTIPART_FORM_DATA)
+                        .body(body.build())
+                        .retrieve()
+                        .body(KnowledgeDocumentResponse.class)
+        );
         if (response == null) {
-            throw new IllegalStateException("AI 知识库服务返回了空结果");
+            throw new AiClientException(AiErrorCode.INVALID_RESPONSE);
         }
         return response;
     }
 
     public List<KnowledgeSearchResult> search(
             KnowledgeSearchRequest request) {
-        List<KnowledgeSearchResult> response = restClient.post()
-                .uri("/api/knowledge/search")
-                .body(request)
-                .retrieve()
-                .body(new ParameterizedTypeReference<>() {
-                });
+        String requestId = UUID.randomUUID().toString();
+        List<KnowledgeSearchResult> response = callExecutor.execute(
+                "knowledge_search",
+                requestId,
+                null,
+                () -> restClient.post()
+                        .uri("/api/knowledge/search")
+                        .header("X-Request-Id", requestId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(request)
+                        .retrieve()
+                        .body(new ParameterizedTypeReference<>() {
+                        })
+        );
         return response == null ? List.of() : response;
     }
 
     public KnowledgeDeleteResponse delete(String documentId) {
-        KnowledgeDeleteResponse response = restClient.delete()
-                .uri("/api/knowledge/documents/{documentId}", documentId)
-                .retrieve()
-                .body(KnowledgeDeleteResponse.class);
+        String requestId = UUID.randomUUID().toString();
+        KnowledgeDeleteResponse response = callExecutor.execute(
+                "knowledge_delete",
+                requestId,
+                null,
+                () -> restClient.delete()
+                        .uri(
+                                "/api/knowledge/documents/{documentId}",
+                                documentId
+                        )
+                        .header("X-Request-Id", requestId)
+                        .retrieve()
+                        .body(KnowledgeDeleteResponse.class)
+        );
         if (response == null) {
-            throw new IllegalStateException("AI 知识库服务返回了空结果");
+            throw new AiClientException(AiErrorCode.INVALID_RESPONSE);
         }
         return response;
     }
