@@ -89,6 +89,7 @@
     {
       "username": "uav-admin",
       "enabled": true,
+      "email": "uav-admin@local.test",
       "emailVerified": true,
       "firstName": "UAV",
       "lastName": "Administrator",
@@ -101,6 +102,42 @@
       ],
       "realmRoles": [
         "ADMIN"
+      ]
+    },
+    {
+      "username": "uav-operator",
+      "enabled": true,
+      "email": "uav-operator@local.test",
+      "emailVerified": true,
+      "firstName": "UAV",
+      "lastName": "Operator",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${UAV_DEV_USER_PASSWORD}",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "OPERATOR"
+      ]
+    },
+    {
+      "username": "uav-viewer",
+      "enabled": true,
+      "email": "uav-viewer@local.test",
+      "emailVerified": true,
+      "firstName": "UAV",
+      "lastName": "Viewer",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${UAV_DEV_USER_PASSWORD}",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "VIEWER"
       ]
     },
     {

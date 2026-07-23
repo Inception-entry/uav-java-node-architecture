@@ -131,6 +131,13 @@ cp deploy/.env.example deploy/.env
 ./scripts/uav.sh logs
 ```
 
+同步本地 `OPERATOR`、`VIEWER` 权限验收账号：
+
+```bash
+./scripts/uav.sh auth-users
+./scripts/uav.sh auth-verify
+```
+
 只操作单个服务：
 
 ```bash
@@ -162,6 +169,15 @@ ollama pull nomic-embed-text
 > 登录，具体配置见 [`docs/gateway.md`](docs/gateway.md)。
 
 > `scripts/uav.sh` 可以从任意目录调用，并始终使用项目中的 `deploy/.env` 和 Compose 文件。运行 `./scripts/uav.sh help` 可以查看全部子命令。
+
+## 持续集成
+
+`.github/workflows/ci.yml` 会在每次 push 和 Pull Request 时并行执行：
+
+- Java 17：Spring Boot 全量测试、Temporal 内嵌测试服务和 Maven 打包；
+- Java 17：Spring Cloud Gateway 鉴权测试和 Maven 打包；
+- Node.js 20：NestJS 编译和 JWT/角色守卫测试；
+- Node.js 22：Vue TypeScript 类型检查和 Vite 生产构建。
 
 ## 本地开发
 

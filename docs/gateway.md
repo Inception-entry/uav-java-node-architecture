@@ -53,8 +53,32 @@ Vue 使用 Keycloak PKCE 登录，因此 Keycloak 会跟随普通 `uav.sh start`
    - 公共客户端：`uav-web`，使用 Authorization Code + PKCE。
    - Realm 角色：`ADMIN`、`OPERATOR`、`VIEWER`。
 
-4. 本地 realm 会创建 `uav-admin` 开发用户并分配 `ADMIN` 角色，其密码只
-   保存在被 Git 忽略的 `deploy/.env`。生产环境不得使用该开发用户。
+4. 本地 realm 会创建三个开发测试用户，密码统一读取被 Git 忽略的
+   `deploy/.env` 中的 `KEYCLOAK_DEV_USER_PASSWORD`：
+
+   | 用户名 | 角色 | 用途 |
+   | --- | --- | --- |
+   | `uav-admin` | `ADMIN` | 管理中心、知识库管理和全部业务操作 |
+   | `uav-operator` | `OPERATOR` | 任务操作和 AI 分析 |
+   | `uav-viewer` | `VIEWER` | 任务与知识库只读访问 |
+
+   已经导入过 realm 的现有环境不会重复执行导入，可以运行以下幂等命令同步
+   测试用户、密码和角色：
+
+   ```bash
+   ./scripts/uav.sh auth-users
+   ```
+
+   执行三角色在 Gateway、Node BFF、Java API 三层的端到端权限验收：
+
+   ```bash
+   ./scripts/uav.sh auth-verify
+   ```
+
+   验收命令会临时启用本地 Password Grant 来获取测试 Token，并在退出时恢复
+   `uav-web` 原有配置。正常前端登录始终使用 Authorization Code + PKCE。
+
+   这些账号仅供本地开发和权限验收，生产环境不得使用。
 
 ## 获取服务调用 Token
 
@@ -108,7 +132,7 @@ GATEWAY_JWT_CLIENT_ID=uav-web
 ./scripts/uav.sh rebuild backend-node gateway frontend
 ```
 
-Vue 启动后会跳转到 Keycloak，使用 `uav-admin` 和 `deploy/.env` 中的
+Vue 启动后会跳转到 Keycloak，使用上述任一测试账号和 `deploy/.env` 中的
 `KEYCLOAK_DEV_USER_PASSWORD` 登录。前端只使用 Authorization Code + PKCE，
 不会持有 `uav-service` Client Secret。登录成功后，每次 API 请求都会自动刷新
 并携带 Access Token。

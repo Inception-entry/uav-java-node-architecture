@@ -33,6 +33,8 @@ show_help() {
   uav.sh auth-start           单独启动本地 Keycloak
   uav.sh auth-stop            停止本地 Keycloak
   uav.sh auth-logs            查看 Keycloak 日志
+  uav.sh auth-users           同步 OPERATOR、VIEWER 测试账号
+  uav.sh auth-verify          执行 ADMIN/OPERATOR/VIEWER 权限验收
   uav.sh auth-token           获取 uav-service 的 Bearer Token
   uav.sh help                 显示帮助
 
@@ -44,6 +46,8 @@ show_help() {
   uav.sh restart temporal-ui
   uav.sh logs gateway
   uav.sh auth-start
+  uav.sh auth-users
+  uav.sh auth-verify
   uav.sh auth-token
   uav.sh logs backend-ai
   uav.sh logs backend-java
@@ -59,6 +63,15 @@ env_value() {
       exit
     }
   ' "$ENV_FILE"
+}
+
+env_value_or_default() {
+  local key="$1"
+  local default_value="$2"
+  local value
+
+  value="$(env_value "$key")"
+  printf '%s\n' "${value:-$default_value}"
 }
 
 require_service_client_secret() {
@@ -127,6 +140,33 @@ case "$ACTION" in
     ;;
   auth-logs)
     compose --profile auth logs -f keycloak
+    ;;
+  auth-users)
+    require_local_keycloak_secrets
+    KEYCLOAK_CONTAINER=uav-keycloak \
+    KEYCLOAK_REALM=uav \
+    KEYCLOAK_ADMIN_USERNAME="$(env_value KEYCLOAK_ADMIN_USERNAME)" \
+    KEYCLOAK_ADMIN_PASSWORD="$(env_value KEYCLOAK_ADMIN_PASSWORD)" \
+    KEYCLOAK_TEST_USER_PASSWORD="$(env_value KEYCLOAK_DEV_USER_PASSWORD)" \
+      "$ROOT_DIR/scripts/keycloak/sync-test-users.sh"
+    ;;
+  auth-verify)
+    require_local_keycloak_secrets
+    KEYCLOAK_CONTAINER=uav-keycloak \
+    KEYCLOAK_REALM=uav \
+    KEYCLOAK_CLIENT_ID=uav-web \
+    KEYCLOAK_URL="$(env_value_or_default \
+      KEYCLOAK_PUBLIC_URL http://localhost:8180)" \
+    KEYCLOAK_ADMIN_USERNAME="$(env_value KEYCLOAK_ADMIN_USERNAME)" \
+    KEYCLOAK_ADMIN_PASSWORD="$(env_value KEYCLOAK_ADMIN_PASSWORD)" \
+    KEYCLOAK_TEST_USER_PASSWORD="$(env_value KEYCLOAK_DEV_USER_PASSWORD)" \
+    GATEWAY_URL="http://localhost:$(env_value_or_default \
+      GATEWAY_PORT 8082)" \
+    NODE_URL="http://localhost:$(env_value_or_default \
+      NODE_PORT 3000)" \
+    JAVA_URL="http://localhost:$(env_value_or_default \
+      JAVA_PORT 8081)" \
+      "$ROOT_DIR/scripts/keycloak/verify-rbac.sh"
     ;;
   auth-token)
     require_service_client_secret
