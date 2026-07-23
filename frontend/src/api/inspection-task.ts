@@ -29,6 +29,18 @@ export interface InspectionAnalysis {
   analysis: string
 }
 
+export interface InspectionAnalysisRecord {
+  analysisId: string
+  taskCode: string
+  sessionId: string
+  channel: 'TEMPORAL' | 'STREAM'
+  question: string
+  answer: string
+  model: string | null
+  sources: KnowledgeSource[]
+  createdAt: string
+}
+
 export interface KnowledgeSource {
   documentId: string
   filename: string
@@ -140,6 +152,12 @@ export function analyzeInspectionTask(
       },
       body: JSON.stringify({ sessionId, question }),
     },
+  )
+}
+
+export function getInspectionAnalysisHistory(taskCode: string) {
+  return request<InspectionAnalysisRecord[]>(
+    `/api/inspection-tasks/${encodeURIComponent(taskCode)}/analyses`,
   )
 }
 

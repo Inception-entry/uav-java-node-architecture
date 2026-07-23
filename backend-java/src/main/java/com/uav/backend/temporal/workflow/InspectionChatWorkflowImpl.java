@@ -31,6 +31,11 @@ public class InspectionChatWorkflowImpl
             String taskCode,
             String sessionId,
             String question) {
-        return activities.chatTask(taskCode, sessionId, question);
+        return activities.chatTask(
+                taskCode,
+                sessionId,
+                question,
+                Workflow.getInfo().getWorkflowId()
+        );
     }
 }

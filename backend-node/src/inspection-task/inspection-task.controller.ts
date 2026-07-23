@@ -40,6 +40,13 @@ export class InspectionTaskController {
     return this.javaClient.get(`/inspection-tasks/${taskCode}`);
   }
 
+  @Get(':taskCode/analyses')
+  analyses(@Param('taskCode') taskCode: string): Promise<unknown> {
+    return this.javaClient.get(
+      `/inspection-tasks/${taskCode}/analyses`,
+    );
+  }
+
   @Post()
   create(@Body() dto: CreateInspectionTaskDto): Promise<unknown> {
     return this.javaClient.post('/inspection-tasks', dto);

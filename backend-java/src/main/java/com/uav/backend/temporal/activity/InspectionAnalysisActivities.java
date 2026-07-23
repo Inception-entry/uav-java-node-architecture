@@ -7,12 +7,17 @@ import io.temporal.activity.ActivityMethod;
 public interface InspectionAnalysisActivities {
 
     @ActivityMethod
-    String analyzeTask(String taskCode, String question);
+    String analyzeTask(
+            String taskCode,
+            String question,
+            String analysisId
+    );
 
     @ActivityMethod
     String chatTask(
             String taskCode,
             String sessionId,
-            String question
+            String question,
+            String analysisId
     );
 }

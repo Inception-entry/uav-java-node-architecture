@@ -1,8 +1,10 @@
 package com.uav.backend.temporal.activity;
 
 import com.uav.backend.ai.client.AiChatClient;
+import com.uav.backend.ai.domain.AnalysisChannel;
+import com.uav.backend.ai.dto.AiChatResponse;
 import com.uav.backend.ai.service.InspectionAnalysisPromptService;
-import io.temporal.activity.Activity;
+import com.uav.backend.ai.service.InspectionAnalysisRecordService;
 import org.springframework.stereotype.Component;
 
 @Component("inspectionAnalysisActivities")
@@ -11,29 +13,58 @@ public class InspectionAnalysisActivitiesImpl
 
     private final AiChatClient aiChatClient;
     private final InspectionAnalysisPromptService promptService;
+    private final InspectionAnalysisRecordService recordService;
 
     public InspectionAnalysisActivitiesImpl(
             AiChatClient aiChatClient,
-            InspectionAnalysisPromptService promptService) {
+            InspectionAnalysisPromptService promptService,
+            InspectionAnalysisRecordService recordService) {
         this.aiChatClient = aiChatClient;
         this.promptService = promptService;
+        this.recordService = recordService;
     }
 
     @Override
-    public String analyzeTask(String taskCode, String question) {
-        String sessionId = Activity.getExecutionContext()
-                .getInfo()
-                .getWorkflowId();
-        return chatTask(taskCode, sessionId, question);
+    public String analyzeTask(
+            String taskCode,
+            String question,
+            String analysisId) {
+        return chatTask(
+                taskCode,
+                analysisId,
+                question,
+                analysisId
+        );
     }
 
     @Override
     public String chatTask(
             String taskCode,
             String sessionId,
-            String question) {
-        String prompt = promptService.buildPrompt(taskCode, question);
+            String question,
+            String analysisId) {
+        var existingAnswer =
+                recordService.findCompletedAnswer(analysisId);
+        if (existingAnswer.isPresent()) {
+            return existingAnswer.get();
+        }
 
-        return aiChatClient.chat(sessionId, prompt, question);
+        String prompt = promptService.buildPrompt(taskCode, question);
+        AiChatResponse response = aiChatClient.chatResponse(
+                sessionId,
+                prompt,
+                question
+        );
+
+        return recordService.saveCompleted(
+                analysisId,
+                taskCode,
+                sessionId,
+                AnalysisChannel.TEMPORAL,
+                question,
+                response.answer(),
+                response.model(),
+                response.sources()
+        ).answer();
     }
 }

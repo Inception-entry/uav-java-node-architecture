@@ -28,6 +28,10 @@ public class InspectionAnalysisWorkflowImpl
 
     @Override
     public String analyze(String taskCode, String question) {
-        return activities.analyzeTask(taskCode, question);
+        return activities.analyzeTask(
+                taskCode,
+                question,
+                Workflow.getInfo().getWorkflowId()
+        );
     }
 }

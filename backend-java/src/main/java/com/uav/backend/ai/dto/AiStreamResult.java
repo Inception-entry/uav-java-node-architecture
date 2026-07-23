@@ -2,12 +2,12 @@ package com.uav.backend.ai.dto;
 
 import java.util.List;
 
-public record AiChatResponse(
+public record AiStreamResult(
         String model,
         String answer,
         List<AiKnowledgeSource> sources
 ) {
-    public AiChatResponse {
+    public AiStreamResult {
         sources = sources == null ? List.of() : List.copyOf(sources);
     }
 }

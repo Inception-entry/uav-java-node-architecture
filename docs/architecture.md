@@ -67,7 +67,12 @@ Java -> Temporal: 启动、查询、推进巡检工作流
 
 交互式 `/chat` 使用独立 SSE 链路，以避免把每个模型 Token 写入
 Temporal Workflow 历史。原有同步分析接口继续由 Temporal 编排并返回完整
-结果，适合后续持久化、重试和审计。
+结果，负责可靠重试和可追踪执行。
+
+两条分析通道都会在模型完整返回后由 Java 服务写入
+`ai_analysis_result` 表。Temporal 通道使用 Workflow ID 作为唯一
+`analysis_id`，SSE 通道使用独立 UUID；因此 Activity 重试不会产生
+重复记录，连接中断或模型失败也不会保存为成功结果。
 
 ## 网关预置配置
 

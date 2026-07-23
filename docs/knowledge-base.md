@@ -18,6 +18,9 @@ Vue /knowledge
 建立 SSE 响应。FastAPI 依次发送 `meta`、`token`、`done` 事件；发生异常时
 发送 `error`。Nginx、Gateway、Node 和 Java 均关闭响应缓冲或直接透传，
 因此浏览器能逐段显示模型输出。
+Java 会在完整回答写入 MySQL 后再转发 `done`；连接中断、模型错误或数据库
+写入失败时不会保存成功记录。历史结果可通过
+`GET /api/inspection-tasks/{taskCode}/analyses` 查询。
 
 ## 首次准备
 
