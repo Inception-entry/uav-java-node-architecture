@@ -50,7 +50,7 @@ spring:
           order: -10
           uri: ${NODE_BFF_URL:http://localhost:3000}
           predicates:
-            - Path=/api/inspection-tasks/*/analysis
+            - Path=/api/inspection-tasks/*/analysis,/api/inspection-tasks/*/analysis/stream
             - Method=POST
           filters:
             - name: RequestRateLimiter

@@ -33,7 +33,9 @@ async function sendAuthorizedRequest(
     'Authorization',
     `Bearer ${await getAccessToken(forceRefresh)}`,
   )
-  headers.set('Accept', 'application/json')
+  if (!headers.has('Accept')) {
+    headers.set('Accept', 'application/json')
+  }
 
   return fetch(request.clone(), {
     headers,

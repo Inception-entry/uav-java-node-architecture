@@ -36,11 +36,12 @@ Node.js 负责：
 - WebSocket 实时推送
 - Socket.IO 握手 JWT 验签、角色校验和 Token 到期断连
 - 调用 Java 服务
-- 后续对接 Python AI 服务
+- 透传 Java 返回的 SSE AI 实时输出
 
-Python AI 服务后续负责：
+Python AI 服务负责：
 
 - LangChain + Ollama 本地对话和任务分析
+- 使用 LangChain `astream` 输出 SSE Token
 - Qdrant 文档向量化、语义检索和来源追踪
 - YOLO 推理
 - 视频抽帧
@@ -56,12 +57,17 @@ Spring Cloud Gateway -> Node.js BFF: HTTP + WebSocket
 Node.js -> Java: REST
 Python -> Java: RabbitMQ / REST
 Java -> Python AI: REST（聊天、知识文档管理和检索）
+Python AI -> Java -> Node -> Gateway -> Nginx -> Vue: SSE 流式 Token
 Python AI -> Qdrant: 文档向量和元数据
 Java -> MinIO: 保存证据截图、视频片段
 Java -> MySQL: 保存业务数据
 Java / Node -> Redis: 缓存、在线状态
 Java -> Temporal: 启动、查询、推进巡检工作流
 ```
+
+交互式 `/chat` 使用独立 SSE 链路，以避免把每个模型 Token 写入
+Temporal Workflow 历史。原有同步分析接口继续由 Temporal 编排并返回完整
+结果，适合后续持久化、重试和审计。
 
 ## 网关预置配置
 

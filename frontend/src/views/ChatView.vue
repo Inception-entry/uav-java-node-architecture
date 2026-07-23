@@ -6,7 +6,7 @@
           <p class="eyebrow">LOCAL UAV COPILOT</p>
           <h1>无人机巡检 AI 分析</h1>
           <p class="subtitle">
-            LangChain · Ollama · Temporal 可靠编排
+            LangChain · Ollama · RAG 实时流式分析
           </p>
         </div>
 
@@ -77,9 +77,21 @@
                 {{ message.role === 'user' ? '巡检人员' : '无人机助手' }}
               </strong>
               <span>{{ message.taskCode }}</span>
+              <span v-if="message.sourceCount">
+                {{ message.sourceCount }} 条知识来源
+              </span>
+              <span v-if="message.streaming" class="live-status">
+                实时生成中
+              </span>
             </div>
 
-            <div class="message-text">{{ message.content }}</div>
+            <div class="message-text">
+              <span>{{ message.content }}</span>
+              <span
+                v-if="message.streaming"
+                class="stream-cursor"
+              ></span>
+            </div>
 
             <div
               v-if="message.workflowId"
@@ -91,15 +103,6 @@
           </div>
         </article>
 
-        <article v-if="submitting" class="message assistant">
-          <div class="avatar">AI</div>
-          <div class="message-content loading-card">
-            <span></span>
-            <span></span>
-            <span></span>
-            <p>正在通过 Temporal 调度本地模型分析……</p>
-          </div>
-        </article>
       </section>
 
       <p v-if="errorMessage" class="error-message">
@@ -122,7 +125,7 @@
             type="submit"
             :disabled="!canSubmit"
           >
-            {{ submitting ? '分析中' : '发送分析' }}
+            {{ submitting ? '生成中' : '发送分析' }}
           </button>
         </div>
       </form>
@@ -132,7 +135,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
-import { analyzeInspectionTask } from '@/api/inspection-task'
+import { streamInspectionAnalysis } from '@/api/inspection-task'
 
 type MessageRole = 'user' | 'assistant'
 
@@ -142,6 +145,8 @@ interface ChatMessage {
   taskCode: string
   content: string
   workflowId?: string
+  streaming?: boolean
+  sourceCount?: number
 }
 
 const suggestions = [
@@ -158,6 +163,7 @@ const submitting = ref(false)
 const errorMessage = ref('')
 const messagePanel = ref<HTMLElement>()
 let messageId = 0
+let scrollFrame: number | undefined
 
 const canSubmit = computed(
   () =>
@@ -171,6 +177,14 @@ const scrollToLatest = async () => {
   if (messagePanel.value) {
     messagePanel.value.scrollTop = messagePanel.value.scrollHeight
   }
+}
+
+const scheduleScrollToLatest = () => {
+  if (scrollFrame !== undefined) return
+  scrollFrame = window.requestAnimationFrame(() => {
+    scrollFrame = undefined
+    void scrollToLatest()
+  })
 }
 
 const sendMessage = async () => {
@@ -188,28 +202,65 @@ const sendMessage = async () => {
     taskCode: currentTaskCode,
     content: currentQuestion,
   })
+  const assistantId = ++messageId
+  messages.value.push({
+    id: assistantId,
+    role: 'assistant',
+    taskCode: currentTaskCode,
+    content: '',
+    streaming: true,
+  })
   question.value = ''
   submitting.value = true
   await scrollToLatest()
 
   try {
-    const result = await analyzeInspectionTask(
+    await streamInspectionAnalysis(
       currentTaskCode,
       sessionId.value,
       currentQuestion,
+      {
+        onMeta(metadata) {
+          const message = messages.value.find(
+            item => item.id === assistantId,
+          )
+          if (message) {
+            message.sourceCount = metadata.sources.length
+          }
+        },
+        onToken(content) {
+          const message = messages.value.find(
+            item => item.id === assistantId,
+          )
+          if (message) {
+            message.content += content
+            scheduleScrollToLatest()
+          }
+        },
+      },
     )
-
-    messages.value.push({
-      id: ++messageId,
-      role: 'assistant',
-      taskCode: result.taskCode,
-      content: result.analysis.trim(),
-      workflowId: result.workflowId,
-    })
+    const message = messages.value.find(
+      item => item.id === assistantId,
+    )
+    if (message) {
+      message.content = message.content.trim()
+    }
   } catch (error) {
+    const message = messages.value.find(
+      item => item.id === assistantId,
+    )
+    if (message && !message.content.trim()) {
+      message.content = '回答生成中断，请稍后重试。'
+    }
     errorMessage.value =
       error instanceof Error ? error.message : 'AI 分析失败，请稍后重试'
   } finally {
+    const message = messages.value.find(
+      item => item.id === assistantId,
+    )
+    if (message) {
+      message.streaming = false
+    }
     submitting.value = false
     await scrollToLatest()
   }
@@ -464,6 +515,11 @@ const startNewConversation = () => {
   color: #8490a3;
 }
 
+.message-meta .live-status {
+  color: #047857;
+  font-weight: 700;
+}
+
 .user .message-meta span {
   color: #bfdbfe;
 }
@@ -472,6 +528,17 @@ const startNewConversation = () => {
   line-height: 1.72;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.stream-cursor {
+  display: inline-block;
+  width: 7px;
+  height: 1.1em;
+  margin-left: 3px;
+  vertical-align: -0.18em;
+  background: #2563eb;
+  border-radius: 2px;
+  animation: cursor-blink 0.8s steps(1) infinite;
 }
 
 .workflow-id {
@@ -583,6 +650,12 @@ const startNewConversation = () => {
   to {
     opacity: 1;
     transform: translateY(-2px);
+  }
+}
+
+@keyframes cursor-blink {
+  50% {
+    opacity: 0;
   }
 }
 

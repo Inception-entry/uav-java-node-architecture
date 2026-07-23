@@ -12,6 +12,7 @@ import reactor.core.publisher.Mono;
 
 import java.security.Principal;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -35,12 +36,15 @@ class AuthenticatedUserHeaderFilterTest {
         );
         AtomicReference<ServerWebExchange> forwarded =
                 new AtomicReference<>();
+        AtomicInteger invocationCount = new AtomicInteger();
 
         filter.filter(exchange, capturedExchange -> {
+            invocationCount.incrementAndGet();
             forwarded.set(capturedExchange);
             return Mono.empty();
         }).block();
 
+        assertThat(invocationCount).hasValue(1);
         assertThat(forwarded.get().getRequest().getHeaders()
                 .containsKey("X-Authenticated-User")).isFalse();
         assertThat(forwarded.get().getRequest().getHeaders()
@@ -68,12 +72,15 @@ class AuthenticatedUserHeaderFilterTest {
         );
         AtomicReference<ServerWebExchange> forwarded =
                 new AtomicReference<>();
+        AtomicInteger invocationCount = new AtomicInteger();
 
         filter.filter(exchange, capturedExchange -> {
+            invocationCount.incrementAndGet();
             forwarded.set(capturedExchange);
             return Mono.empty();
         }).block();
 
+        assertThat(invocationCount).hasValue(1);
         assertThat(forwarded.get().getRequest().getHeaders()
                 .getFirst("X-Authenticated-User")).isEqualTo("user-001");
         assertThat(forwarded.get().getRequest().getHeaders()

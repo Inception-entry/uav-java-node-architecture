@@ -14,6 +14,11 @@ Vue /knowledge
 
 聊天分析仍由 Java 从 MySQL 读取真实巡检任务数据。FastAPI 使用用户原始问题检索 Qdrant，把命中的手册片段和 MySQL 任务上下文一起交给 `my-drone-expert`，并在回答末尾返回参考文档。Qdrant 不保存巡检任务业务数据。
 
+`/chat` 页面通过 `POST /api/inspection-tasks/{taskCode}/analysis/stream`
+建立 SSE 响应。FastAPI 依次发送 `meta`、`token`、`done` 事件；发生异常时
+发送 `error`。Nginx、Gateway、Node 和 Java 均关闭响应缓冲或直接透传，
+因此浏览器能逐段显示模型输出。
+
 ## 首次准备
 
 安装本地嵌入模型：

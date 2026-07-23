@@ -1,6 +1,7 @@
 import { HttpService } from '@nestjs/axios';
 import { HttpException, Injectable } from '@nestjs/common';
 import { isAxiosError } from 'axios';
+import { Readable } from 'node:stream';
 import { firstValueFrom } from 'rxjs';
 
 @Injectable()
@@ -36,6 +37,38 @@ export class JavaClientService {
       return response.data;
     } catch (error) {
       this.rethrowUpstreamError(error);
+    }
+  }
+
+  async postStream(
+    path: string,
+    body: unknown,
+    timeout = 300_000,
+  ): Promise<Readable> {
+    try {
+      const response = await firstValueFrom(
+        this.httpService.post<Readable>(
+          `${this.baseUrl}/api${path}`,
+          body,
+          {
+            timeout,
+            responseType: 'stream',
+            headers: {
+              Accept: 'text/event-stream',
+              'Content-Type': 'application/json',
+            },
+          },
+        ),
+      );
+      return response.data;
+    } catch (error) {
+      if (isAxiosError(error) && error.response) {
+        throw new HttpException(
+          'Java 流式分析服务请求失败',
+          error.response.status,
+        );
+      }
+      throw error;
     }
   }
 

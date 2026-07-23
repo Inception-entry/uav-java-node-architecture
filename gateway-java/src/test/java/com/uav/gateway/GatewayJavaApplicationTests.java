@@ -43,6 +43,15 @@ class GatewayJavaApplicationTests {
                 .findFirst()
                 .orElseThrow();
         assertThat(analysisRoute.getOrder()).isEqualTo(-10);
+        assertThat(analysisRoute.getPredicates())
+                .anySatisfy(predicate -> {
+                    assertThat(predicate.getName()).isEqualTo("Path");
+                    assertThat(predicate.getArgs().values())
+                            .contains(
+                                    "/api/inspection-tasks/*/analysis",
+                                    "/api/inspection-tasks/*/analysis/stream"
+                            );
+                });
         assertThat(analysisRoute.getFilters())
                 .anySatisfy(filter -> {
                     assertThat(filter.getName())

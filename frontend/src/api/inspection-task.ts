@@ -29,6 +29,24 @@ export interface InspectionAnalysis {
   analysis: string
 }
 
+export interface KnowledgeSource {
+  documentId: string
+  filename: string
+  page: number | null
+  score: number
+}
+
+export interface InspectionStreamMetadata {
+  model: string
+  sources: KnowledgeSource[]
+}
+
+export interface InspectionStreamHandlers {
+  onMeta?: (metadata: InspectionStreamMetadata) => void
+  onToken: (content: string) => void
+  onDone?: () => void
+}
+
 interface ApiResponse<T> {
   success: boolean
   message: string
@@ -123,4 +141,120 @@ export function analyzeInspectionTask(
       body: JSON.stringify({ sessionId, question }),
     },
   )
+}
+
+export async function streamInspectionAnalysis(
+  taskCode: string,
+  sessionId: string,
+  question: string,
+  handlers: InspectionStreamHandlers,
+) {
+  const response = await authorizedFetch(
+    `/api/inspection-tasks/${encodeURIComponent(taskCode)}/analysis/stream`,
+    {
+      method: 'POST',
+      headers: {
+        Accept: 'text/event-stream',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ sessionId, question }),
+    },
+  )
+
+  if (!response.ok) {
+    throw new Error(await responseErrorMessage(response))
+  }
+  if (!response.body) {
+    throw new Error('浏览器未提供流式响应，请更换现代浏览器')
+  }
+
+  await consumeEventStream(response.body, handlers)
+}
+
+async function consumeEventStream(
+  body: ReadableStream<Uint8Array>,
+  handlers: InspectionStreamHandlers,
+) {
+  const reader = body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let completed = false
+
+  try {
+    while (!completed) {
+      const { value, done } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+
+      let boundary = eventBoundary(buffer)
+      while (boundary) {
+        const block = buffer.slice(0, boundary.index)
+        buffer = buffer.slice(boundary.index + boundary.length)
+        completed = handleStreamEvent(block, handlers) || completed
+        boundary = eventBoundary(buffer)
+      }
+    }
+  } catch (error) {
+    await reader.cancel().catch(() => undefined)
+    throw error
+  } finally {
+    reader.releaseLock()
+  }
+
+  if (!completed) {
+    throw new Error('AI 流式连接提前结束，请重试')
+  }
+}
+
+function eventBoundary(buffer: string) {
+  const match = /\r?\n\r?\n/.exec(buffer)
+  return match?.index === undefined
+    ? undefined
+    : { index: match.index, length: match[0].length }
+}
+
+function handleStreamEvent(
+  block: string,
+  handlers: InspectionStreamHandlers,
+) {
+  let event = 'message'
+  const dataLines: string[] = []
+
+  for (const line of block.split(/\r?\n/)) {
+    if (line.startsWith('event:')) {
+      event = line.slice(6).trim()
+    } else if (line.startsWith('data:')) {
+      dataLines.push(line.slice(5).trimStart())
+    }
+  }
+  if (dataLines.length === 0) return false
+
+  const data = JSON.parse(dataLines.join('\n')) as Record<string, unknown>
+  if (event === 'meta') {
+    handlers.onMeta?.(data as unknown as InspectionStreamMetadata)
+  } else if (event === 'token' && typeof data.content === 'string') {
+    handlers.onToken(data.content)
+  } else if (event === 'error') {
+    throw new Error(
+      typeof data.message === 'string'
+        ? data.message
+        : 'AI 流式生成失败',
+    )
+  } else if (event === 'done') {
+    handlers.onDone?.()
+    return true
+  }
+  return false
+}
+
+async function responseErrorMessage(response: Response) {
+  try {
+    const result = await response.json() as {
+      message?: string
+      detail?: string
+    }
+    return result.message || result.detail || `请求失败：HTTP ${response.status}`
+  } catch {
+    return `请求失败：HTTP ${response.status}`
+  }
 }

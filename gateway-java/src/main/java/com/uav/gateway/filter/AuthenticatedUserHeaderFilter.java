@@ -58,7 +58,7 @@ public class AuthenticatedUserHeaderFilter
                                         authentication.getName()
                                 )
                 )
-                .flatMap(principal -> {
+                .map(principal -> {
                     Authentication authentication =
                             (Authentication) principal;
                     String userId = resolveUserId(authentication);
@@ -91,11 +91,12 @@ public class AuthenticatedUserHeaderFilter
                                         );
                                     })
                                     .build();
-                    return chain.filter(sanitizedExchange.mutate()
+                    return sanitizedExchange.mutate()
                             .request(authenticatedRequest)
-                            .build());
+                            .build();
                 })
-                .switchIfEmpty(chain.filter(sanitizedExchange));
+                .defaultIfEmpty(sanitizedExchange)
+                .flatMap(chain::filter);
     }
 
     private String resolveUserId(Authentication authentication) {

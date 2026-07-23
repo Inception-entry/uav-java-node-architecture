@@ -3,8 +3,11 @@ package com.uav.backend.ai.client;
 import com.uav.backend.ai.dto.AiChatRequest;
 import com.uav.backend.ai.dto.AiChatResponse;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+
+import java.io.OutputStream;
 
 @Component
 public class AiChatClient {
@@ -36,5 +39,30 @@ public class AiChatClient {
         }
 
         return response.answer();
+    }
+
+    public void stream(
+            String sessionId,
+            String message,
+            String knowledgeQuery,
+            OutputStream outputStream) {
+        restClient.post()
+                .uri("/api/chat/stream")
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.TEXT_EVENT_STREAM)
+                .body(new AiChatRequest(sessionId, message, knowledgeQuery))
+                .exchange((request, response) -> {
+                    if (!response.getStatusCode().is2xxSuccessful()) {
+                        throw new IllegalStateException(
+                                "AI 流式服务请求失败: HTTP "
+                                        + response.getStatusCode().value()
+                        );
+                    }
+                    try (var inputStream = response.getBody()) {
+                        inputStream.transferTo(outputStream);
+                        outputStream.flush();
+                    }
+                    return null;
+                });
     }
 }

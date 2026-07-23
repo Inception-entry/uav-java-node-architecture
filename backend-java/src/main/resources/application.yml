@@ -8,6 +8,9 @@ spring:
     name: uav-backend-java
   profiles:
     default: local
+  mvc:
+    async:
+      request-timeout: 300000
   servlet:
     multipart:
       max-file-size: 10MB

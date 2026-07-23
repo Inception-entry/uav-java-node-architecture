@@ -1,4 +1,7 @@
+import asyncio
+import json
 from contextlib import asynccontextmanager
+from collections.abc import AsyncIterator
 
 import httpx
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile, status
@@ -6,6 +9,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_ollama import ChatOllama
 from qdrant_client.http.exceptions import UnexpectedResponse
 from redis.asyncio import Redis
+from starlette.responses import StreamingResponse
 
 from app.chat_history import RedisChatHistory
 from app.config import get_settings
@@ -147,15 +151,22 @@ async def chat(payload: ChatRequest, request: Request) -> ChatResponse:
     return ChatResponse(
         model=settings.ollama_model,
         answer=answer,
-        sources=[
-            KnowledgeSource(
-                documentId=item.document_id,
-                filename=item.filename,
-                page=item.page,
-                score=item.score,
-            )
-            for item in sources
-        ],
+        sources=_knowledge_sources(sources),
+    )
+
+
+@app.post("/api/chat/stream")
+async def stream_chat(
+    payload: ChatRequest,
+    request: Request,
+) -> StreamingResponse:
+    return StreamingResponse(
+        _stream_chat_events(payload, request),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "X-Accel-Buffering": "no",
+        },
     )
 
 
@@ -268,8 +279,105 @@ def _append_source_summary(
     answer: str,
     sources: list[KnowledgeSearchResult],
 ) -> str:
+    return f"{answer.rstrip()}{_source_summary(sources)}"
+
+
+async def _stream_chat_events(
+    payload: ChatRequest,
+    request: Request,
+) -> AsyncIterator[str]:
+    try:
+        history = await request.app.state.chat_history.get_messages(
+            payload.session_id
+        )
+        sources = await request.app.state.knowledge_base.search(
+            payload.knowledge_query or payload.message
+        )
+        messages = [*history]
+        if sources:
+            messages.append(SystemMessage(content=_rag_system_prompt(sources)))
+        messages.append(HumanMessage(content=payload.message))
+
+        yield _sse_event(
+            "meta",
+            {
+                "model": settings.ollama_model,
+                "sources": [
+                    source.model_dump(by_alias=True)
+                    for source in _knowledge_sources(sources)
+                ],
+            },
+        )
+
+        answer_parts: list[str] = []
+        async for chunk in request.app.state.llm.astream(messages):
+            content = _message_content(chunk.content)
+            if not content:
+                continue
+            answer_parts.append(content)
+            yield _sse_event("token", {"content": content})
+
+        answer = "".join(answer_parts).rstrip()
+        source_summary = _source_summary(sources)
+        if source_summary:
+            answer += source_summary
+            yield _sse_event("token", {"content": source_summary})
+
+        await request.app.state.chat_history.append_exchange(
+            payload.session_id,
+            payload.message,
+            answer,
+        )
+        yield _sse_event(
+            "done",
+            {
+                "model": settings.ollama_model,
+                "answerLength": len(answer),
+            },
+        )
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        yield _sse_event(
+            "error",
+            {"message": f"模型流式调用失败: {exc}"},
+        )
+
+
+def _knowledge_sources(
+    sources: list[KnowledgeSearchResult],
+) -> list[KnowledgeSource]:
+    return [
+        KnowledgeSource(
+            documentId=item.document_id,
+            filename=item.filename,
+            page=item.page,
+            score=item.score,
+        )
+        for item in sources
+    ]
+
+
+def _message_content(content: object) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "".join(
+            str(block.get("text", ""))
+            for block in content
+            if isinstance(block, dict) and block.get("type") == "text"
+        )
+    return str(content) if content is not None else ""
+
+
+def _sse_event(event: str, data: dict[str, object]) -> str:
+    payload = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
+    return f"event: {event}\ndata: {payload}\n\n"
+
+
+def _source_summary(sources: list[KnowledgeSearchResult]) -> str:
     if not sources:
-        return answer
+        return ""
     seen: set[tuple[str, int | None]] = set()
     lines = []
     for item in sources:
@@ -279,4 +387,4 @@ def _append_source_summary(
         seen.add(key)
         page = f"（第 {item.page} 页）" if item.page else ""
         lines.append(f"- {item.filename}{page}")
-    return f"{answer.rstrip()}\n\n参考资料：\n" + "\n".join(lines)
+    return "\n\n参考资料：\n" + "\n".join(lines)
