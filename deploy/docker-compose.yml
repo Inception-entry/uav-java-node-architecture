@@ -179,6 +179,11 @@ services:
       TEMPORAL_TARGET_ENDPOINT: temporal:7233
       TEMPORAL_NAMESPACE: default
       TEMPORAL_TASK_QUEUE: uav-inspection-task-queue
+      APP_SECURITY_ENABLED: ${BACKEND_SECURITY_ENABLED:-true}
+      AUTH_JWT_JWK_SET_URI: ${GATEWAY_JWT_JWK_SET_URI:-http://keycloak:8080/realms/uav/protocol/openid-connect/certs}
+      AUTH_JWT_ISSUER_URI: ${GATEWAY_JWT_ISSUER_URI:-http://localhost:8180/realms/uav}
+      AUTH_JWT_AUDIENCE: ${GATEWAY_JWT_AUDIENCE:-uav-web}
+      AUTH_JWT_CLIENT_ID: ${GATEWAY_JWT_CLIENT_ID:-uav-web}
       AI_BASE_URL: http://host.docker.internal:8000
       AI_CONNECT_TIMEOUT: ${AI_CONNECT_TIMEOUT:-3s}
       AI_READ_TIMEOUT: ${AI_READ_TIMEOUT:-250s}
@@ -204,6 +209,8 @@ services:
         condition: service_started
       backend-ai:
         condition: service_healthy
+      keycloak:
+        condition: service_started
     networks:
       - backend
 

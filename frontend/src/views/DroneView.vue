@@ -10,6 +10,7 @@
 
         <div class="header-actions">
           <button
+            v-if="canOperate"
             class="secondary-button"
             type="button"
             :disabled="loading"
@@ -17,7 +18,7 @@
           >
             新建任务
           </button>
-          <RouterLink class="chat-link" to="/chat">
+          <RouterLink v-if="canOperate" class="chat-link" to="/chat">
             AI 智能分析
           </RouterLink>
           <RouterLink class="knowledge-link" to="/knowledge">
@@ -173,7 +174,7 @@
                 </span>
               </td>
               <td>
-                <div class="row-actions">
+                <div v-if="canOperate" class="row-actions">
                   <button
                     type="button"
                     :disabled="loading || task.status !== 'CREATED'"
@@ -203,6 +204,7 @@
                     取消
                   </button>
                 </div>
+                <span v-else class="read-only-hint">只读权限</span>
               </td>
             </tr>
 
@@ -217,7 +219,8 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { authenticationState } from '@/auth/keycloak'
 import {
   cancelInspectionTask,
   completeInspectionTask,
@@ -242,6 +245,11 @@ const formVisible = ref(false)
 const editingTaskCode = ref('')
 const errorMessage = ref('')
 const successMessage = ref('')
+const canOperate = computed(() =>
+  authenticationState.roles.some((role) =>
+    role === 'ADMIN' || role === 'OPERATOR',
+  ),
+)
 const form = reactive<TaskForm>(createEmptyForm())
 
 function createEmptyForm(): TaskForm {
@@ -584,6 +592,11 @@ input:focus {
 .empty-cell {
   color: #64748b;
   text-align: center;
+}
+
+.read-only-hint {
+  color: #64748b;
+  font-size: 12px;
 }
 
 .table-wrapper {

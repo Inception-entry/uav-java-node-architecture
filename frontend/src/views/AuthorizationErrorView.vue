@@ -15,7 +15,7 @@
 
       <div class="actions">
         <a-button type="primary" @click="handlePrimaryAction">
-          {{ status === 401 ? '重新登录' : '返回原页面' }}
+          {{ status === 401 ? '重新登录' : '返回巡检任务' }}
         </a-button>
         <a-button @click="goHome">返回首页</a-button>
       </div>

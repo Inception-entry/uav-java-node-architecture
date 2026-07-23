@@ -7,6 +7,7 @@ import {
   Res,
   Put,
 } from '@nestjs/common';
+import { Roles } from '../auth/http-auth.decorators';
 import { JavaClientService } from '../shared/java-client.service';
 import { AnalyzeInspectionTaskDto } from './dto/analyze-inspection-task.dto';
 import {
@@ -48,11 +49,13 @@ export class InspectionTaskController {
   }
 
   @Post()
+  @Roles('ADMIN', 'OPERATOR')
   create(@Body() dto: CreateInspectionTaskDto): Promise<unknown> {
     return this.javaClient.post('/inspection-tasks', dto);
   }
 
   @Put(':taskCode')
+  @Roles('ADMIN', 'OPERATOR')
   update(
     @Param('taskCode') taskCode: string,
     @Body() dto: UpdateInspectionTaskDto,
@@ -64,6 +67,7 @@ export class InspectionTaskController {
   }
 
   @Post(':taskCode/start')
+  @Roles('ADMIN', 'OPERATOR')
   start(@Param('taskCode') taskCode: string): Promise<unknown> {
     return this.javaClient.post(
       `/inspection-workflows/${taskCode}`,
@@ -72,6 +76,7 @@ export class InspectionTaskController {
   }
 
   @Post(':taskCode/complete')
+  @Roles('ADMIN', 'OPERATOR')
   complete(@Param('taskCode') taskCode: string): Promise<unknown> {
     return this.javaClient.post(
       `/inspection-workflows/${taskCode}/complete`,
@@ -80,6 +85,7 @@ export class InspectionTaskController {
   }
 
   @Post(':taskCode/cancel')
+  @Roles('ADMIN', 'OPERATOR')
   cancel(@Param('taskCode') taskCode: string): Promise<unknown> {
     return this.javaClient.post(
       `/inspection-workflows/${taskCode}/cancel`,
@@ -88,6 +94,7 @@ export class InspectionTaskController {
   }
 
   @Post(':taskCode/analysis')
+  @Roles('ADMIN', 'OPERATOR')
   analyze(
     @Param('taskCode') taskCode: string,
     @Body() dto: AnalyzeInspectionTaskDto,
@@ -100,6 +107,7 @@ export class InspectionTaskController {
   }
 
   @Post(':taskCode/analysis/stream')
+  @Roles('ADMIN', 'OPERATOR')
   async streamAnalysis(
     @Param('taskCode') taskCode: string,
     @Body() dto: AnalyzeInspectionTaskDto,
@@ -130,10 +138,12 @@ export class InspectionTaskController {
         }
         finish();
       });
-      stream.once('error', (error) => {
+      stream.once('error', () => {
         if (!response.writableEnded) {
           const data = JSON.stringify({
-            message: `流式代理中断: ${error.message}`,
+            code: 'STREAM_PROXY_INTERRUPTED',
+            message: '流式代理连接中断，请重试',
+            retryable: true,
           });
           response.write(`event: error\ndata: ${data}\n\n`);
           response.end();

@@ -11,4 +11,6 @@ public interface InspectionTaskRepository
     Optional<InspectionTask> findByTaskCode(String taskCode);
 
     boolean existsByTaskCode(String taskCode);
+
+    long countByStatus(String status);
 }

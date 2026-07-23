@@ -2,6 +2,7 @@ import { Body, Controller, Get, Post } from '@nestjs/common';
 import { JavaClientService } from '../shared/java-client.service';
 import { AlarmRealtimeGateway } from '../realtime/alarm-realtime.gateway';
 import { CreateAlarmDto } from './dto/create-alarm.dto';
+import { Roles } from '../auth/http-auth.decorators';
 
 @Controller('alarms')
 export class AlarmController {
@@ -16,6 +17,7 @@ export class AlarmController {
   }
 
   @Post()
+  @Roles('ADMIN', 'OPERATOR')
   async create(@Body() dto: CreateAlarmDto) {
     const payload = {
       ...dto,

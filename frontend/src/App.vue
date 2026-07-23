@@ -9,6 +9,13 @@
     >
       <span>{{ authenticationState.username }}</span>
       <span class="authentication-role">{{ displayedRoles }}</span>
+      <RouterLink
+        v-if="isAdministrator"
+        class="admin-link"
+        to="/admin"
+      >
+        管理中心
+      </RouterLink>
       <a-button size="small" @click="handleLogout">退出</a-button>
     </div>
   </a-config-provider>
@@ -24,6 +31,9 @@ const displayedRoles = computed(() =>
   authenticationState.roles
     .filter((role) => ['ADMIN', 'OPERATOR', 'VIEWER'].includes(role))
     .join(', '),
+)
+const isAdministrator = computed(() =>
+  authenticationState.roles.includes('ADMIN'),
 )
 
 const handleLogout = () => {
@@ -51,5 +61,10 @@ const handleLogout = () => {
 .authentication-role {
   color: #91caff;
   font-size: 12px;
+}
+
+.admin-link {
+  color: #fff;
+  text-decoration: none;
 }
 </style>

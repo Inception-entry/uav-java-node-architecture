@@ -15,6 +15,7 @@
 
 - **Nginx**：域名与 HTTPS 入口、静态资源托管、API/WebSocket 反向代理。
 - **Gateway**：JWT/Keycloak 鉴权、服务路由、Redis 限流、可信身份传递、请求 ID、访问日志与指标。
+- **权限与审计**：Gateway、Node BFF、Java API 三层 JWT 校验，关键写操作持久化审计，并提供 `/admin` 管理中心。
 - **Frontend**：三维地图、无人机展示、主题与语言切换。
 - **Node.js**：面向前端的接口聚合、Java 服务代理、Socket.IO 告警推送。
 - **Java**：告警、设备、巡检任务等核心业务、数据持久化及 Temporal 工作流编排入口。

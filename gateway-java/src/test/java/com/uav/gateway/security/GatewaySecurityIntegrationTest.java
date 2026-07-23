@@ -107,4 +107,20 @@ class GatewaySecurityIntegrationTest {
                 .expectBody()
                 .jsonPath("$.code").isEqualTo("FORBIDDEN");
     }
+
+    @Test
+    void operatorCannotReadAdminApi() {
+        webTestClient.mutateWith(mockJwt().authorities(
+                        new SimpleGrantedAuthority("ROLE_OPERATOR")
+                ))
+                .get()
+                .uri("/api/admin/audit-logs")
+                .header("X-Request-Id", "gateway-admin-role-test")
+                .exchange()
+                .expectStatus().isForbidden()
+                .expectBody()
+                .jsonPath("$.code").isEqualTo("FORBIDDEN")
+                .jsonPath("$.requestId")
+                .isEqualTo("gateway-admin-role-test");
+    }
 }

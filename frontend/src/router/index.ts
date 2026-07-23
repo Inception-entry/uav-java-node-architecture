@@ -3,7 +3,9 @@ import Home from '../views/Home.vue'
 import DroneView from '../views/DroneView.vue'
 import ChatView from '../views/ChatView.vue'
 import KnowledgeView from '../views/KnowledgeView.vue'
+import AdminView from '../views/AdminView.vue'
 import AuthorizationErrorView from '../views/AuthorizationErrorView.vue'
+import { authenticationState } from '@/auth/keycloak'
 
 const routes = [
   {
@@ -18,12 +20,23 @@ const routes = [
   {
     path: '/chat',
     name: 'chat',
-    component: ChatView
+    component: ChatView,
+    meta: {
+      roles: ['ADMIN', 'OPERATOR'],
+    },
   },
   {
     path: '/knowledge',
     name: 'knowledge',
     component: KnowledgeView
+  },
+  {
+    path: '/admin',
+    name: 'admin',
+    component: AdminView,
+    meta: {
+      roles: ['ADMIN'],
+    },
   },
   {
     path: '/401',
@@ -42,6 +55,32 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes
+})
+
+router.beforeEach((to) => {
+  if (to.path === '/401' || to.path === '/403') {
+    return true
+  }
+
+  const requiredRoles = to.meta.roles as string[] | undefined
+  if (!requiredRoles?.length) {
+    return true
+  }
+
+  const permitted = requiredRoles.some((role) =>
+    authenticationState.roles.includes(role),
+  )
+  if (permitted) {
+    return true
+  }
+
+  return {
+    path: '/403',
+    query: {
+      redirect: '/drone',
+      requested: to.fullPath,
+    },
+  }
 })
 
 export default router

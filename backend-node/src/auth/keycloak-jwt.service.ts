@@ -123,7 +123,7 @@ export class KeycloakJwtService {
       throw new RealtimeAuthorizationError(
         403,
         'FORBIDDEN',
-        '当前用户没有实时告警访问权限',
+        '当前用户没有平台访问权限',
       );
     }
 

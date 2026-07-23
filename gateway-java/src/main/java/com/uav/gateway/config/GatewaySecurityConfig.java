@@ -71,6 +71,7 @@ public class GatewaySecurityConfig {
                         // 由 Node BFF 握手中间件完成验签和角色校验。
                         .pathMatchers("/socket.io/**").permitAll()
                         .pathMatchers("/actuator/**").hasRole("ADMIN")
+                        .pathMatchers("/api/admin/**").hasRole("ADMIN")
                         .pathMatchers(
                                 HttpMethod.POST,
                                 "/api/knowledge/search"

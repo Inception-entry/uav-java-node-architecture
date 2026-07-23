@@ -12,6 +12,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JavaClientService } from '../shared/java-client.service';
 import { SearchKnowledgeDto } from './dto/search-knowledge.dto';
+import { Roles } from '../auth/http-auth.decorators';
 
 interface UploadedKnowledgeFile {
   buffer: Buffer;
@@ -29,6 +30,7 @@ export class KnowledgeController {
   }
 
   @Post('documents')
+  @Roles('ADMIN')
   @UseInterceptors(
     FileInterceptor('file', {
       limits: { fileSize: 10 * 1024 * 1024 },
@@ -52,6 +54,7 @@ export class KnowledgeController {
   }
 
   @Delete('documents/:documentId')
+  @Roles('ADMIN')
   deleteDocument(
     @Param('documentId') documentId: string,
   ): Promise<unknown> {

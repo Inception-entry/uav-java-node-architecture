@@ -1,6 +1,8 @@
 import { Controller, Get } from '@nestjs/common';
+import { PublicRoute } from '../auth/http-auth.decorators';
 
 @Controller('health')
+@PublicRoute()
 export class HealthController {
   @Get()
   health() {

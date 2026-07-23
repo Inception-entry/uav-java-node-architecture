@@ -15,6 +15,8 @@ Object.assign(jwk, { kid: KID, alg: 'RS256', use: 'sig' });
 
 let server;
 let service;
+let HttpJwtAuthGuard;
+let HttpRolesGuard;
 
 before(async () => {
   server = createServer((request, response) => {
@@ -30,6 +32,12 @@ before(async () => {
   const { KeycloakJwtService } = require(
     '../dist/auth/keycloak-jwt.service.js'
   );
+  ({ HttpJwtAuthGuard } = require(
+    '../dist/auth/http-jwt-auth.guard.js'
+  ));
+  ({ HttpRolesGuard } = require(
+    '../dist/auth/http-roles.guard.js'
+  ));
   service = new KeycloakJwtService();
 });
 
@@ -68,6 +76,71 @@ test('rejects a token issued for another audience', async () => {
   );
 });
 
+test('HTTP guard authenticates a Bearer token and attaches identity', async () => {
+  const request = {
+    headers: {
+      authorization: `Bearer ${createToken({
+        realm_access: { roles: ['OPERATOR'] },
+      })}`,
+    },
+  };
+  const guard = new HttpJwtAuthGuard(
+    { getAllAndOverride: () => false },
+    service,
+  );
+
+  assert.equal(await guard.canActivate(httpContext(request)), true);
+  assert.equal(request.authenticatedUser.username, 'pilot-one');
+  assert.deepEqual(request.authenticatedUser.roles, ['OPERATOR']);
+  assert.ok(request.accessToken);
+});
+
+test('HTTP guard returns 401 when Bearer token is missing', async () => {
+  const guard = new HttpJwtAuthGuard(
+    { getAllAndOverride: () => false },
+    service,
+  );
+
+  await assert.rejects(
+    guard.canActivate(httpContext({ headers: {} })),
+    (error) => error.getStatus() === 401
+      && error.getResponse().code === 'UNAUTHORIZED',
+  );
+});
+
+test('HTTP roles guard rejects an operator from an admin endpoint', () => {
+  const guard = new HttpRolesGuard({
+    getAllAndOverride: () => ['ADMIN'],
+  });
+
+  assert.throws(
+    () => guard.canActivate(httpContext({
+      headers: {},
+      authenticatedUser: {
+        subject: 'user-001',
+        username: 'pilot-one',
+        roles: ['OPERATOR'],
+      },
+    })),
+    (error) => error.getStatus() === 403,
+  );
+});
+
+test('HTTP roles guard allows an administrator into an admin endpoint', () => {
+  const guard = new HttpRolesGuard({
+    getAllAndOverride: () => ['ADMIN'],
+  });
+
+  assert.equal(guard.canActivate(httpContext({
+    headers: {},
+    authenticatedUser: {
+      subject: 'admin-001',
+      username: 'uav-admin',
+      roles: ['ADMIN'],
+    },
+  })), true);
+});
+
 function createToken(overrides = {}) {
   const now = Math.floor(Date.now() / 1000);
   const header = encode({ alg: 'RS256', typ: 'JWT', kid: KID });
@@ -92,4 +165,15 @@ function createToken(overrides = {}) {
 
 function encode(value) {
   return Buffer.from(JSON.stringify(value)).toString('base64url');
+}
+
+function httpContext(request) {
+  return {
+    getType: () => 'http',
+    getHandler: () => function handler() {},
+    getClass: () => class Controller {},
+    switchToHttp: () => ({
+      getRequest: () => request,
+    }),
+  };
 }

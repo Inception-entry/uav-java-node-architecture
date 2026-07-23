@@ -41,6 +41,12 @@ spring:
           - inspectionTaskActivities
           - inspectionAnalysisActivities
 app:
+  security:
+    enabled: ${APP_SECURITY_ENABLED:true}
+    jwk-set-uri: ${AUTH_JWT_JWK_SET_URI:http://localhost:8180/realms/uav/protocol/openid-connect/certs}
+    issuer-uri: ${AUTH_JWT_ISSUER_URI:http://localhost:8180/realms/uav}
+    audience: ${AUTH_JWT_AUDIENCE:uav-web}
+    client-id: ${AUTH_JWT_CLIENT_ID:uav-web}
   ai:
     base-url: ${AI_BASE_URL:http://localhost:8000}
     connect-timeout: ${AI_CONNECT_TIMEOUT:3s}

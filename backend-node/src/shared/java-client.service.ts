@@ -1,19 +1,33 @@
 import { HttpService } from '@nestjs/axios';
-import { HttpException, Injectable } from '@nestjs/common';
+import {
+  HttpException,
+  Inject,
+  Injectable,
+  Scope,
+} from '@nestjs/common';
+import { REQUEST } from '@nestjs/core';
 import { isAxiosError } from 'axios';
 import { Readable } from 'node:stream';
 import { firstValueFrom } from 'rxjs';
+import type { AuthenticatedHttpRequest } from '../auth/http-auth.types';
 
-@Injectable()
+@Injectable({ scope: Scope.REQUEST })
 export class JavaClientService {
   private readonly baseUrl = process.env.JAVA_BASE_URL ?? 'http://localhost:8081';
 
-  constructor(private readonly httpService: HttpService) {}
+  constructor(
+    private readonly httpService: HttpService,
+    @Inject(REQUEST)
+    private readonly request: AuthenticatedHttpRequest,
+  ) {}
 
   async get<T>(path: string): Promise<T> {
     try {
       const response = await firstValueFrom(
-        this.httpService.get<T>(`${this.baseUrl}/api${path}`),
+        this.httpService.get<T>(
+          `${this.baseUrl}/api${path}`,
+          { headers: this.downstreamHeaders() },
+        ),
       );
       return response.data;
     } catch (error) {
@@ -31,7 +45,10 @@ export class JavaClientService {
         this.httpService.post<T>(
           `${this.baseUrl}/api${path}`,
           body,
-          { timeout },
+          {
+            timeout,
+            headers: this.downstreamHeaders(),
+          },
         ),
       );
       return response.data;
@@ -54,6 +71,7 @@ export class JavaClientService {
             timeout,
             responseType: 'stream',
             headers: {
+              ...this.downstreamHeaders(),
               Accept: 'text/event-stream',
               'Content-Type': 'application/json',
             },
@@ -82,7 +100,10 @@ export class JavaClientService {
         this.httpService.put<T>(
           `${this.baseUrl}/api${path}`,
           body,
-          { timeout },
+          {
+            timeout,
+            headers: this.downstreamHeaders(),
+          },
         ),
       );
       return response.data;
@@ -114,7 +135,10 @@ export class JavaClientService {
         this.httpService.post<T>(
           `${this.baseUrl}/api${path}`,
           formData,
-          { timeout },
+          {
+            timeout,
+            headers: this.downstreamHeaders(),
+          },
         ),
       );
       return response.data;
@@ -128,6 +152,7 @@ export class JavaClientService {
       const response = await firstValueFrom(
         this.httpService.delete<T>(`${this.baseUrl}/api${path}`, {
           timeout,
+          headers: this.downstreamHeaders(),
         }),
       );
       return response.data;
@@ -144,5 +169,36 @@ export class JavaClientService {
       );
     }
     throw error;
+  }
+
+  private downstreamHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {};
+    if (this.request.accessToken) {
+      headers.Authorization = `Bearer ${this.request.accessToken}`;
+    }
+
+    const requestId = this.headerValue(
+      this.request.headers['x-request-id'],
+    );
+    if (requestId) {
+      headers['X-Request-Id'] = requestId;
+    }
+
+    const forwardedFor = this.headerValue(
+      this.request.headers['x-forwarded-for'],
+    );
+    const clientIp = forwardedFor?.split(',', 1)[0].trim()
+      || this.request.ip
+      || this.request.socket?.remoteAddress;
+    if (clientIp) {
+      headers['X-Forwarded-For'] = clientIp;
+    }
+    return headers;
+  }
+
+  private headerValue(
+    value: string | string[] | undefined,
+  ): string | undefined {
+    return Array.isArray(value) ? value[0] : value;
   }
 }
