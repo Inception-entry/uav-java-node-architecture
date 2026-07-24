@@ -8,7 +8,8 @@
     "build": "vue-tsc -b && vite build",
     "preview": "vite preview",
     "postinstall": "patch-package",
-    "lint": "eslint . --ext .vue,.js,.ts"
+    "lint": "eslint . --ext .vue,.js,.ts",
+    "lint:fix": "npm run lint -- --fix"
   },
   "dependencies": {
     "ant-design-vue": "^4.2.6",

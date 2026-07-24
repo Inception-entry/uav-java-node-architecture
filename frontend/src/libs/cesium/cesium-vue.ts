@@ -1,4 +1,4 @@
-import  { type App } from 'vue'
+import { type App } from 'vue'
 
 export type CesiumRef = import('@/@types/shims-cesium-ref').CesiumRef
 
@@ -18,7 +18,7 @@ export default {
       viewer: undefined,
       viewerContainer: undefined,
     }
-    //@ts-ignore
+    // @ts-expect-error Vue's public type does not expose this injected property.
     app.config.globalProperties.$cesiumRef = cr
     app.provide<CesiumRef>(CESIUM_REF_KEY, cr)
   },

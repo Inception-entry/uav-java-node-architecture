@@ -168,7 +168,9 @@ ollama pull nomic-embed-text
 > `127.0.0.1`。局域网/公网业务入口只有 Nginx。Vue 使用 Keycloak PKCE
 > 登录，具体配置见 [`docs/gateway.md`](docs/gateway.md)。
 
-> `scripts/uav.sh` 可以从任意目录调用，并始终使用项目中的 `deploy/.env` 和 Compose 文件。运行 `./scripts/uav.sh help` 可以查看全部子命令。
+> `scripts/uav.sh` 可以从任意目录调用，默认使用项目中的 `deploy/.env`
+> 和 Compose 文件；CI 可以通过 `UAV_ENV_FILE` 指定一次性的隔离配置。
+> 运行 `./scripts/uav.sh help` 可以查看全部子命令。
 
 ## 持续集成
 
@@ -176,8 +178,18 @@ ollama pull nomic-embed-text
 
 - Java 17：Spring Boot 全量测试、Temporal 内嵌测试服务和 Maven 打包；
 - Java 17：Spring Cloud Gateway 鉴权测试和 Maven 打包；
-- Node.js 20：NestJS 编译和 JWT/角色守卫测试；
-- Node.js 22：Vue TypeScript 类型检查和 Vite 生产构建。
+- Node.js 20：NestJS 只读 lint、编译和 JWT/角色守卫测试；
+- Node.js 22：Vue 只读 lint、TypeScript 类型检查和 Vite 生产构建。
+
+上述任务全部通过后，`Docker full-stack integration` 会继续执行：
+
+- 根据锁文件构建 AI、Java、Gateway、Node BFF 和 Vue 镜像；
+- 使用运行时随机生成的密码启动隔离 Compose 环境，不读取仓库 Secret；
+- 使用 Ollama Mock 完成 AI 服务依赖健康检查，不下载本地大模型；
+- 执行 `ADMIN`、`OPERATOR`、`VIEWER` 三角色鉴权验收；
+- 创建临时巡检任务并验证
+  `Gateway → Node BFF → Java → Temporal → MySQL` 状态闭环；
+- 失败时上传 Compose 状态、全量容器日志和镜像清单，并保留 7 天。
 
 ## 本地开发
 

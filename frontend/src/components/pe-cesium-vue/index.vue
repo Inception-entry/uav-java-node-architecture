@@ -201,8 +201,12 @@ export default defineComponent({
       cesiumRef.viewerContainer = (viewer as any)._element
 
       const { viewerMountOnWindow, cesiumMountOnWindow } = props
-      viewerMountOnWindow && (window.viewer = viewer)
-      cesiumMountOnWindow && (window.Cesium = Cesium)
+      if (viewerMountOnWindow) {
+        window.viewer = viewer
+      }
+      if (cesiumMountOnWindow) {
+        window.Cesium = Cesium
+      }
       return viewer
     }
 
@@ -224,8 +228,12 @@ export default defineComponent({
         cesiumRef.viewer = undefined
       }
       const { viewerMountOnWindow, cesiumMountOnWindow } = props
-      viewerMountOnWindow && (window.viewer = undefined)
-      cesiumMountOnWindow && (window.Cesium = undefined)
+      if (viewerMountOnWindow) {
+        window.viewer = undefined
+      }
+      if (cesiumMountOnWindow) {
+        window.Cesium = undefined
+      }
     })
 
     return {
